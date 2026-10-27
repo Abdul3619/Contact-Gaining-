@@ -1,0 +1,6 @@
+{
+  "name": "GlobalSphere Contacts - International WhatsApp Exchange",
+  "description": "Consensual, international WhatsApp contact exchange platform. Register voluntarily, manage privacy & consent, download verified contact releases, and grow your global community.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
