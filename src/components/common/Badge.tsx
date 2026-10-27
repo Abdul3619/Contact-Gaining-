@@ -7,7 +7,7 @@ import React from 'react';
 
 interface BadgeProps {
   children: React.ReactNode;
-  variant?: 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'pilot';
+  variant?: 'neutral' | 'success' | 'warning' | 'danger' | 'gold' | 'bronze';
   size?: 'sm' | 'md';
   className?: string;
 }
@@ -19,22 +19,22 @@ export const Badge: React.FC<BadgeProps> = ({
   className = '',
 }) => {
   const sizeStyles = {
-    sm: 'text-xs px-2 py-0.5',
+    sm: 'text-[11px] px-2 py-0.5',
     md: 'text-xs px-2.5 py-1 font-medium',
   };
 
   const variantStyles = {
-    neutral: 'bg-slate-100 text-slate-700 border border-slate-200/60',
-    success: 'bg-emerald-50 text-emerald-800 border border-emerald-200/60',
-    warning: 'bg-amber-50 text-amber-800 border border-amber-200/60',
-    danger: 'bg-rose-50 text-rose-800 border border-rose-200/60',
-    info: 'bg-sky-50 text-sky-800 border border-sky-200/60',
-    pilot: 'bg-teal-50 text-teal-900 border border-teal-300 font-semibold',
+    neutral: 'bg-[#EDE8DE]/90 text-[#5C5549] border border-[#DFD7C8] dark:bg-[#1D1A15] dark:text-[#A8A196] dark:border-[#2B261F]',
+    gold: 'bg-[#C5A15B]/15 text-[#9D7B43] dark:text-[#C5A15B] border border-[#C5A15B]/30 font-semibold',
+    bronze: 'bg-[#9D7B43]/15 text-[#9D7B43] dark:text-[#C5A15B] border border-[#9D7B43]/30',
+    success: 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30',
+    warning: 'bg-amber-500/10 text-amber-800 dark:text-amber-400 border border-amber-500/30',
+    danger: 'bg-rose-500/10 text-rose-800 dark:text-rose-400 border border-rose-500/30',
   };
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded font-medium whitespace-nowrap shrink-0 ${sizeStyles[size]} ${variantStyles[variant]} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-md font-medium whitespace-nowrap shrink-0 transition-colors ${sizeStyles[size]} ${variantStyles[variant]} ${className}`}
     >
       {children}
     </span>

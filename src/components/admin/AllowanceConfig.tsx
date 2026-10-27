@@ -8,70 +8,64 @@ import { useApp } from '../../context/AppContext';
 import { mockDataService } from '../../services/mockDataService';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
-import { Sliders, Save, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
+import { Save, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
 
 export const AllowanceConfig: React.FC = () => {
   const { addToast } = useApp();
   const config = mockDataService.getAllowanceConfig();
 
-  const [weeklyAllowance, setWeeklyAllowance] = useState(config.freeWeeklyContactsPerMember);
-  const [monetizationThreshold, setMonetizationThreshold] = useState(config.pilotMonetizationThreshold);
-  const [pilotActive, setPilotActive] = useState(config.pilotActive);
+  const [monetizationThreshold, setMonetizationThreshold] = useState(config.futureMonetizationEvaluationThreshold || 1000);
+  const [pilotActive, setPilotActive] = useState(config.growthPhaseActive);
   const [releaseDay, setReleaseDay] = useState(config.incrementalReleaseDay);
-  const [maxAttempts, setMaxAttempts] = useState(config.maxDownloadAttemptsPerDay);
+  const [maxAttempts, setMaxAttempts] = useState(config.maxDailyDownloadAttempts || 10);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     setTimeout(() => {
-      mockDataService.updateAllowanceConfig({
-        freeWeeklyContactsPerMember: Number(weeklyAllowance),
-        pilotMonetizationThreshold: Number(monetizationThreshold),
-        pilotActive,
+      mockDataService.updateGrowthConfig({
+        futureMonetizationEvaluationThreshold: Number(monetizationThreshold),
+        growthPhaseActive: pilotActive,
         incrementalReleaseDay: releaseDay,
-        maxDownloadAttemptsPerDay: Number(maxAttempts),
+        maxDailyDownloadAttempts: Number(maxAttempts),
       });
       setIsSaving(false);
-      addToast('Weekly allowance & pilot parameters updated successfully.', 'success');
+      addToast('Growth policy & pilot parameters updated successfully.', 'success');
     }, 400);
   };
 
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-          5. Weekly Free Allowance &amp; Pilot Settings
+        <h1 className="text-xl sm:text-2xl font-bold text-[#25221D] dark:text-[#F5F0E6] tracking-tight">
+          Growth Policy &amp; Pilot Settings
         </h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Configure baseline weekly allowances, monetization thresholds, and release frequency.
+        <p className="text-xs text-[#736C61] dark:text-[#A89F91] mt-1">
+          Configure growth-stage uncapped contact access, future monetization evaluation benchmarks, and release frequency.
         </p>
       </div>
 
-      <form onSubmit={handleSave} className="bg-slate-950 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6">
+      <form onSubmit={handleSave} className="bg-[#FFFCF6] dark:bg-[#15130F] border border-[#DFD7C8] dark:border-[#2B261F] rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
+        {/* Growth Policy Highlights */}
+        <div className="p-4 rounded-xl bg-[#EDE8DE] dark:bg-[#1D1A15] border border-[#DFD7C8] dark:border-[#2B261F] text-xs text-[#736C61] dark:text-[#A89F91] flex items-start gap-3">
+          <Sparkles className="w-4 h-4 text-[#C5A15B] shrink-0 mt-0.5" />
+          <div>
+            <span className="font-semibold text-[#25221D] dark:text-[#F5F0E6] block mb-1">
+              Active Growth Policy: No Fixed Weekly Cap
+            </span>
+            <p className="leading-relaxed">
+              During this international expansion phase, eligible members can download all newly verified contacts available that they have not previously received, subject only to anti-abuse rate limits.
+            </p>
+          </div>
+        </div>
+
         {/* Core Settings */}
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                Free Weekly Contacts Per Member
-              </label>
-              <input
-                type="number"
-                min={10}
-                max={500}
-                value={weeklyAllowance}
-                onChange={e => setWeeklyAllowance(Number(e.target.value))}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:border-teal-500 outline-hidden"
-              />
-              <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
-                Default: <strong>50 unique contacts/week</strong>. Existing participants retain this free quota after future monetization launches.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                Pilot Monetization Threshold (Eligible Members)
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[#736C61] dark:text-[#A89F91]">
+                Monetization Evaluation Threshold
               </label>
               <input
                 type="number"
@@ -80,23 +74,21 @@ export const AllowanceConfig: React.FC = () => {
                 step={50}
                 value={monetizationThreshold}
                 onChange={e => setMonetizationThreshold(Number(e.target.value))}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:border-teal-500 outline-hidden"
+                className="w-full bg-[#EDE8DE] dark:bg-[#1D1A15] border border-[#DFD7C8] dark:border-[#2B261F] rounded-xl px-3.5 py-2.5 text-sm text-[#25221D] dark:text-[#F5F0E6] font-mono focus:border-[#C5A15B] outline-hidden"
               />
-              <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
-                Target: <strong>{monetizationThreshold} eligible participants</strong>. Network remains 100% free pilot until this verified benchmark is confirmed.
+              <p className="text-[11px] text-[#736C61] dark:text-[#81796D] mt-1.5 leading-relaxed">
+                Benchmark: <strong>{monetizationThreshold} verified eligible participants</strong>. Network operates completely free until community surpasses this milestone.
               </p>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                Weekly Incremental Release Day
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[#736C61] dark:text-[#A89F91]">
+                Weekly Release Day
               </label>
               <select
                 value={releaseDay}
                 onChange={e => setReleaseDay(e.target.value as any)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-teal-500 outline-hidden cursor-pointer"
+                className="w-full bg-[#EDE8DE] dark:bg-[#1D1A15] border border-[#DFD7C8] dark:border-[#2B261F] rounded-xl px-3.5 py-2.5 text-sm text-[#25221D] dark:text-[#F5F0E6] focus:border-[#C5A15B] outline-hidden cursor-pointer"
               >
                 <option value="Monday">Monday (09:00 UTC)</option>
                 <option value="Wednesday">Wednesday (12:00 UTC)</option>
@@ -104,13 +96,15 @@ export const AllowanceConfig: React.FC = () => {
                 <option value="Saturday">Saturday (10:00 UTC)</option>
                 <option value="Sunday">Sunday (18:00 UTC)</option>
               </select>
-              <p className="text-[11px] text-slate-500 mt-1.5">
-                Automated schedule trigger for bundling new voluntary participants.
+              <p className="text-[11px] text-[#736C61] dark:text-[#81796D] mt-1.5">
+                Automated schedule trigger for bundling new voluntary participants into cohorts.
               </p>
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[#736C61] dark:text-[#A89F91]">
                 Max Daily Download Attempts
               </label>
               <input
@@ -119,34 +113,38 @@ export const AllowanceConfig: React.FC = () => {
                 max={50}
                 value={maxAttempts}
                 onChange={e => setMaxAttempts(Number(e.target.value))}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:border-teal-500 outline-hidden"
+                className="w-full bg-[#EDE8DE] dark:bg-[#1D1A15] border border-[#DFD7C8] dark:border-[#2B261F] rounded-xl px-3.5 py-2.5 text-sm text-[#25221D] dark:text-[#F5F0E6] font-mono focus:border-[#C5A15B] outline-hidden"
               />
-              <p className="text-[11px] text-slate-500 mt-1.5">
-                Rate limiter to prevent automated mass-scraping bots.
+              <p className="text-[11px] text-[#736C61] dark:text-[#81796D] mt-1.5">
+                Spam protection rate limit to prevent automated scraping scripts.
               </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-[#EDE8DE] dark:bg-[#1D1A15] border border-[#DFD7C8] dark:border-[#2B261F] flex items-center justify-between">
+              <div>
+                <span className="font-semibold text-xs block text-[#25221D] dark:text-[#F5F0E6]">Growth Phase Mode</span>
+                <span className="text-[11px] text-[#736C61] dark:text-[#A89F91]">
+                  Uncapped downloads active. Paid checkouts remain dormant.
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={pilotActive}
+                onChange={e => setPilotActive(e.target.checked)}
+                className="w-5 h-5 rounded border-[#DFD7C8] text-[#C5A15B] focus:ring-[#C5A15B] cursor-pointer"
+              />
             </div>
           </div>
         </div>
 
-        {/* Pilot Mode Switch */}
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
-          <div>
-            <span className="font-semibold text-white text-xs block">Free Pilot Mode Active</span>
-            <span className="text-[11px] text-slate-400">
-              When active, paid package checkout gates remain dormant and all eligible members receive free releases.
-            </span>
-          </div>
-          <input
-            type="checkbox"
-            checked={pilotActive}
-            onChange={e => setPilotActive(e.target.checked)}
-            className="w-5 h-5 rounded text-teal-600 border-slate-700 bg-slate-800 focus:ring-teal-500 cursor-pointer"
-          />
-        </div>
-
-        <div className="flex justify-end pt-2">
-          <Button type="submit" variant="emerald" isLoading={isSaving} icon={<Save className="w-4 h-4" />}>
-            Save Configuration Changes
+        <div className="pt-4 border-t border-[#DFD7C8] dark:border-[#2B261F] flex justify-end">
+          <Button
+            type="submit"
+            variant="gold"
+            isLoading={isSaving}
+            icon={<Save className="w-4 h-4" />}
+          >
+            Save Growth Configuration
           </Button>
         </div>
       </form>

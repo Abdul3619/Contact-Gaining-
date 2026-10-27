@@ -1,1 +1,37 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --bg-deep: #0B0A08;
+    --surface-charcoal: #15130F;
+    --surface-secondary-dark: #1D1A15;
+    --surface-border-dark: #2B261F;
+    --accent-gold: #C5A15B;
+    --accent-bronze: #9D7B43;
+    --accent-gold-hover: #D4B36D;
+    --accent-gold-muted: rgba(197, 161, 91, 0.15);
+    
+    --bg-light: #F4F0E8;
+    --surface-light: #FFFCF6;
+    --surface-secondary-light: #EDE8DE;
+    --surface-border-light: #DFD7C8;
+    --text-dark: #1E1B16;
+    --text-muted-light: #736C61;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    transition: background-color 0.7s cubic-bezier(0.4, 0, 0.2, 1), color 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* Custom subtle noise texture */
+.bg-grain-texture {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+}

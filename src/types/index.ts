@@ -4,6 +4,7 @@
  */
 
 export type Locale = 'en' | 'fr';
+export type ThemeMode = 'dark' | 'light' | 'system';
 
 export interface Country {
   name: string;
@@ -46,6 +47,7 @@ export interface Member {
   downloadCount: number;
   totalReferrals: number;
   isSampleRecord: boolean;
+  previouslyAllocatedContactIds?: string[];
 }
 
 export interface ContactRelease {
@@ -83,13 +85,12 @@ export interface Referral {
   status: 'active_consented' | 'pending_consent' | 'withdrawn';
 }
 
-export interface WeeklyAllowanceConfig {
-  freeWeeklyContactsPerMember: number;
-  pilotMonetizationThreshold: number; // e.g. 1000 eligible members
+export interface GrowthPhaseConfig {
+  growthPhaseActive: boolean; // Growth stage: no fixed weekly download cap
   currentEligibleCount: number;
-  pilotActive: boolean;
+  futureMonetizationEvaluationThreshold: number; // 1000 members proposed benchmark
   incrementalReleaseDay: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
-  maxDownloadAttemptsPerDay: number;
+  maxDailyDownloadAttempts: number;
 }
 
 export interface PackagePlan {
@@ -102,7 +103,7 @@ export interface PackagePlan {
   priceUSD: number;
   billingCadence: 'one_time' | 'monthly';
   targetAudience: string;
-  isLive: boolean; // false during Phase 1 pilot
+  isLive: boolean; // false during Phase 2A growth pilot
 }
 
 export type AbuseReportCategory = 
@@ -137,11 +138,11 @@ export interface AuditLogEvent {
 }
 
 export interface SystemSettings {
-  pilotModeActive: boolean;
+  growthPhaseActive: boolean;
   registrationOpen: boolean;
-  allowanceResetIntervalHours: number;
   requireDoubleOptInConsent: boolean;
   e164ValidationStrict: boolean;
   disclaimerEnforced: boolean;
   communityInviteLink: string;
+  founderPortfolioUrl: string;
 }

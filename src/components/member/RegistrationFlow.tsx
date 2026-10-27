@@ -6,37 +6,27 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { SearchableCountrySelect } from '../common/SearchableCountrySelect';
-import { COUNTRIES, getCountryByCode, getCountryByDialCode } from '../../data/countries';
+import { COUNTRIES, getCountryByCode } from '../../data/countries';
 import { normalizePhoneNumber } from '../../services/phoneUtils';
 import { mockDataService } from '../../services/mockDataService';
 import { Button } from '../common/Button';
-import { Badge } from '../common/Badge';
-import {
-  WhatsAppStatusNotice,
-  ContactPermanenceNotice,
-} from '../common/Disclaimers';
+import { WhatsAppStatusNotice } from '../common/Disclaimers';
 import {
   CheckCircle2,
-  AlertCircle,
-  ShieldCheck,
   ArrowRight,
   ArrowLeft,
-  User,
-  Phone,
-  FileCheck,
-  Sparkles,
+  Check,
 } from 'lucide-react';
 
 export const RegistrationFlow: React.FC = () => {
-  const { locale, setLocale, t, setMemberScreen, refreshData, addToast } = useApp();
+  const { locale, t, setMemberScreen, refreshData, addToast } = useApp();
 
-  // Multi-step progress: 1: Details & Country, 2: Phone & Language, 3: Consent & Review
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Form State
   const [displayName, setDisplayName] = useState('');
-  const [countryCode, setCountryCode] = useState('NG'); // Default to Nigeria, but can pick ANY country
-  const [phoneCallingCode, setPhoneCallingCode] = useState('+234'); // Independent calling code
+  const [countryCode, setCountryCode] = useState('NG');
+  const [phoneCallingCode, setPhoneCallingCode] = useState('+234');
   const [rawPhone, setRawPhone] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [preferredLanguage, setPreferredLanguage] = useState<'en' | 'fr'>(locale);
@@ -56,39 +46,36 @@ export const RegistrationFlow: React.FC = () => {
 
   const selectedCountry = getCountryByCode(countryCode) || COUNTRIES[0];
 
-  // Step 1 Validation
   const validateStep1 = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!displayName.trim() || displayName.trim().length < 3) {
-      errs.displayName = 'Display name must be at least 3 characters.';
+    if (!displayName.trim() || displayName.trim().length < 2) {
+      errs.displayName = 'Please enter your name or business name.';
     }
     if (!countryCode) {
-      errs.countryCode = 'Please select your country of residence.';
+      errs.countryCode = 'Please select the country where you reside.';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  // Step 2 Validation
   const validateStep2 = (): boolean => {
     const errs: Record<string, string> = {};
     if (!rawPhone.trim()) {
-      errs.rawPhone = 'WhatsApp phone number is required.';
+      errs.rawPhone = 'Please enter your WhatsApp phone number.';
     } else if (!phoneValidation.isValid) {
-      errs.rawPhone = phoneValidation.errorMessage || 'Please enter a valid phone number for this calling code.';
+      errs.rawPhone = phoneValidation.errorMessage || 'Please enter a valid phone number for this country code.';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  // Step 3 Validation
   const validateStep3 = (): boolean => {
     const errs: Record<string, string> = {};
     if (!consentExport) {
-      errs.consentExport = 'You must grant voluntary consent to share your details with eligible members.';
+      errs.consentExport = 'Please check the box to confirm you wish to share your details.';
     }
     if (!acknowledgeNoWipe) {
-      errs.acknowledgeNoWipe = 'You must acknowledge that previously exported contacts cannot be wiped from physical devices.';
+      errs.acknowledgeNoWipe = 'Please confirm you understand how phone downloads work.';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -131,12 +118,12 @@ export const RegistrationFlow: React.FC = () => {
 
       if (res.success) {
         refreshData();
-        addToast(`Registration recorded! Welcome, ${res.member.displayName}.`, 'success');
-        setMemberScreen('verification_pending');
+        addToast(`Welcome to Contact Gaining, ${res.member.displayName}!`, 'success');
+        setMemberScreen('dashboard');
       } else {
-        setErrors({ submit: res.error || 'Failed to complete registration.' });
+        setErrors({ submit: res.error || 'Unable to complete registration. Please check your details.' });
       }
-    }, 600);
+    }, 500);
   };
 
   return (
@@ -145,50 +132,50 @@ export const RegistrationFlow: React.FC = () => {
       <div className="mb-8">
         <button
           onClick={handleBack}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 mb-4 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6B6357] hover:text-[#1C1915] dark:text-[#A8A196] dark:hover:text-[#F5F0E6] mb-4 transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>{step === 1 ? 'Back to Overview' : 'Previous Step'}</span>
+          <span>{step === 1 ? 'Back to overview' : 'Previous step'}</span>
         </button>
 
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#1C1915] dark:text-[#F5F0E6] tracking-tight">
           {t('regTitle')}
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Join the consensual, international WhatsApp network. Free pilot phase.
+        <p className="text-xs sm:text-sm text-[#6B6357] dark:text-[#A8A196] mt-1">
+          Step {step} of 3 — Join fellow creators and entrepreneurs.
         </p>
 
         {/* Progress Tracker */}
-        <div className="grid grid-cols-3 gap-2 mt-6">
+        <div className="grid grid-cols-3 gap-2 mt-5">
           <div
-            className={`h-2 rounded-full transition-all ${
-              step >= 1 ? 'bg-teal-600' : 'bg-slate-200'
+            className={`h-1.5 rounded-full transition-all ${
+              step >= 1 ? 'bg-[#C5A15B]' : 'bg-[#E5DFD5] dark:bg-[#2B261F]'
             }`}
           />
           <div
-            className={`h-2 rounded-full transition-all ${
-              step >= 2 ? 'bg-teal-600' : 'bg-slate-200'
+            className={`h-1.5 rounded-full transition-all ${
+              step >= 2 ? 'bg-[#C5A15B]' : 'bg-[#E5DFD5] dark:bg-[#2B261F]'
             }`}
           />
           <div
-            className={`h-2 rounded-full transition-all ${
-              step >= 3 ? 'bg-teal-600' : 'bg-slate-200'
+            className={`h-1.5 rounded-full transition-all ${
+              step >= 3 ? 'bg-[#C5A15B]' : 'bg-[#E5DFD5] dark:bg-[#2B261F]'
             }`}
           />
         </div>
 
-        <div className="flex justify-between text-[11px] font-semibold text-slate-500 mt-2">
-          <span className={step === 1 ? 'text-teal-700 font-bold' : ''}>{t('regStep1')}</span>
-          <span className={step === 2 ? 'text-teal-700 font-bold' : ''}>{t('regStep2')}</span>
-          <span className={step === 3 ? 'text-teal-700 font-bold' : ''}>{t('regStep3')}</span>
+        <div className="flex justify-between text-[11px] font-medium text-[#6B6357] dark:text-[#81796D] mt-2">
+          <span className={step === 1 ? 'text-[#9D7B43] dark:text-[#C5A15B] font-bold' : ''}>{t('regStep1')}</span>
+          <span className={step === 2 ? 'text-[#9D7B43] dark:text-[#C5A15B] font-bold' : ''}>{t('regStep2')}</span>
+          <span className={step === 3 ? 'text-[#9D7B43] dark:text-[#C5A15B] font-bold' : ''}>{t('regStep3')}</span>
         </div>
       </div>
 
       {/* STEP 1: Basic Info & Residence Country */}
       {step === 1 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="rounded-2xl border p-6 sm:p-8 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs space-y-6">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+            <label className="block text-xs font-semibold text-[#1C1915] dark:text-[#F5F0E6] uppercase tracking-wider mb-2">
               {t('displayNameLabel')} *
             </label>
             <input
@@ -196,17 +183,17 @@ export const RegistrationFlow: React.FC = () => {
               value={displayName}
               onChange={e => setDisplayName(e.target.value)}
               placeholder={t('displayNamePlaceholder')}
-              className={`w-full min-h-[44px] px-3.5 py-2.5 bg-white border rounded-xl text-sm transition-colors outline-hidden ${
+              className={`w-full min-h-[44px] px-3.5 py-2.5 bg-transparent border rounded-lg text-sm transition-colors outline-hidden text-[#1C1915] dark:text-[#F5F0E6] placeholder:text-[#81796D] ${
                 errors.displayName
-                  ? 'border-rose-400 focus:border-rose-600'
-                  : 'border-slate-300 focus:border-slate-900'
+                  ? 'border-rose-500 focus:border-rose-600'
+                  : 'border-[#E5DFD5] focus:border-[#C5A15B] dark:border-[#2B261F]'
               }`}
             />
             {errors.displayName ? (
-              <p className="text-xs text-rose-600 mt-1.5">{errors.displayName}</p>
+              <p className="text-xs text-rose-500 mt-1.5">{errors.displayName}</p>
             ) : (
-              <p className="text-[11px] text-slate-400 mt-1.5">
-                This name will appear on contact cards (e.g. "Amara Diallo · Design Studio").
+              <p className="text-[11px] text-[#6B6357] dark:text-[#81796D] mt-1.5">
+                This is how you will appear in members&apos; contact books.
               </p>
             )}
           </div>
@@ -218,7 +205,6 @@ export const RegistrationFlow: React.FC = () => {
               value={countryCode}
               onChange={(code, country) => {
                 setCountryCode(code);
-                // Also optionally pre-fill calling code if not set
                 if (!rawPhone) {
                   setPhoneCallingCode(country.dialCode);
                 }
@@ -226,13 +212,13 @@ export const RegistrationFlow: React.FC = () => {
               locale={locale}
               error={errors.countryCode}
             />
-            <p className="text-[11px] text-slate-400 mt-1.5">
-              Select your current country of residence. This is independent from your phone calling code.
+            <p className="text-[11px] text-[#6B6357] dark:text-[#81796D] mt-1.5">
+              Select your current country of residence.
             </p>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+            <label className="block text-xs font-semibold text-[#1C1915] dark:text-[#F5F0E6] uppercase tracking-wider mb-2">
               {t('referralCodeLabel')}
             </label>
             <input
@@ -240,16 +226,16 @@ export const RegistrationFlow: React.FC = () => {
               value={referralCode}
               onChange={e => setReferralCode(e.target.value.toUpperCase())}
               placeholder={t('referralCodePlaceholder')}
-              className="w-full min-h-[44px] px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm transition-colors uppercase outline-hidden focus:border-slate-900 font-mono"
+              className="w-full min-h-[44px] px-3.5 py-2.5 bg-transparent border border-[#E5DFD5] dark:border-[#2B261F] rounded-lg text-sm transition-colors uppercase outline-hidden focus:border-[#C5A15B] font-mono text-[#1C1915] dark:text-[#F5F0E6]"
             />
-            <p className="text-[11px] text-slate-400 mt-1.5">
-              If an existing member invited you, enter their code here.
+            <p className="text-[11px] text-[#6B6357] dark:text-[#81796D] mt-1.5">
+              If an existing member invited you, enter their invite code here.
             </p>
           </div>
 
           <div className="pt-4 flex justify-end">
-            <Button size="lg" variant="emerald" onClick={handleNext} icon={<ArrowRight className="w-4 h-4" />}>
-              Continue to Phone Setup
+            <Button size="lg" variant="gold" onClick={handleNext} icon={<ArrowRight className="w-4 h-4 text-black" />}>
+              Continue to phone setup
             </Button>
           </div>
         </div>
@@ -257,7 +243,7 @@ export const RegistrationFlow: React.FC = () => {
 
       {/* STEP 2: Phone Number & Normalization */}
       {step === 2 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="rounded-2xl border p-6 sm:p-8 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs space-y-6">
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-1">
@@ -271,7 +257,7 @@ export const RegistrationFlow: React.FC = () => {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-[#1C1915] dark:text-[#F5F0E6] uppercase tracking-wider mb-1.5">
                   {t('phoneLabel')} *
                 </label>
                 <input
@@ -279,42 +265,47 @@ export const RegistrationFlow: React.FC = () => {
                   value={rawPhone}
                   onChange={e => setRawPhone(e.target.value)}
                   placeholder={t('phonePlaceholder')}
-                  className={`w-full min-h-[44px] px-3.5 py-2 text-sm bg-white border rounded-xl transition-colors outline-hidden font-mono ${
+                  className={`w-full min-h-[44px] px-3.5 py-2 text-sm bg-transparent border rounded-lg transition-colors outline-hidden font-mono text-[#1C1915] dark:text-[#F5F0E6] ${
                     errors.rawPhone
-                      ? 'border-rose-400 focus:border-rose-600'
-                      : 'border-slate-300 focus:border-slate-900'
+                      ? 'border-rose-500 focus:border-rose-600'
+                      : 'border-[#E5DFD5] focus:border-[#C5A15B] dark:border-[#2B261F]'
                   }`}
                 />
               </div>
             </div>
 
             {errors.rawPhone && (
-              <p className="text-xs text-rose-600">{errors.rawPhone}</p>
+              <p className="text-xs text-rose-500">{errors.rawPhone}</p>
             )}
 
-            {/* Live E.164 Normalization Preview */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+            {/* Clean Live Normalization Preview */}
+            <div className="p-4 rounded-xl border text-xs space-y-2 bg-[#F6F2EA]/70 dark:bg-[#1D1A15] border-[#E5DFD5] dark:border-[#2B261F]">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-700">International Normalization Preview</span>
+                <span className="font-semibold text-[#1C1915] dark:text-[#F5F0E6]">
+                  Phone number preview
+                </span>
                 {phoneValidation.isValid ? (
-                  <Badge variant="success">E.164 Valid</Badge>
+                  <span className="text-emerald-700 dark:text-emerald-400 font-medium inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Valid format
+                  </span>
                 ) : rawPhone ? (
-                  <Badge variant="warning">Checking Format...</Badge>
+                  <span className="text-amber-700 dark:text-amber-400 font-medium">Checking...</span>
                 ) : (
-                  <Badge variant="neutral">Pending Input</Badge>
+                  <span className="text-[#6B6357] dark:text-[#81796D]">Enter number</span>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono text-slate-600 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono pt-1 text-[#6B6357] dark:text-[#A8A196]">
                 <div>
-                  <span className="text-slate-400 block">Normalized E.164:</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="text-[#6B6357] dark:text-[#81796D] block">International format:</span>
+                  <span className="font-semibold text-[#1C1915] dark:text-[#F5F0E6]">
                     {phoneValidation.e164 || '—'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">International Format:</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="text-[#6B6357] dark:text-[#81796D] block">Display format:</span>
+                  <span className="font-semibold text-[#1C1915] dark:text-[#F5F0E6]">
                     {phoneValidation.internationalFormat || '—'}
                   </span>
                 </div>
@@ -323,37 +314,37 @@ export const RegistrationFlow: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+            <label className="block text-xs font-semibold text-[#1C1915] dark:text-[#F5F0E6] uppercase tracking-wider mb-2">
               {t('langLabel')}
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setPreferredLanguage('en')}
-                className={`p-3 rounded-xl border text-left text-xs font-semibold transition-colors cursor-pointer ${
+                className={`p-3 rounded-lg border text-left text-xs font-semibold transition-colors cursor-pointer ${
                   preferredLanguage === 'en'
-                    ? 'border-teal-500 bg-teal-50/60 text-teal-950'
-                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                    ? 'border-[#9D7B43] dark:border-[#C5A15B] bg-[#C5A15B]/10 text-[#9D7B43] dark:text-[#C5A15B]'
+                    : 'border-[#E5DFD5] dark:border-[#2B261F] text-[#6B6357] dark:text-[#A8A196] hover:bg-[#F6F2EA] dark:hover:bg-[#1D1A15]'
                 }`}
               >
-                🇬🇧 English
-                <span className="block text-[11px] font-normal text-slate-500 mt-0.5">
-                  Standard releases &amp; notifications
+                English
+                <span className="block text-[11px] font-normal text-[#6B6357] dark:text-[#81796D] mt-0.5">
+                  Standard interface
                 </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setPreferredLanguage('fr')}
-                className={`p-3 rounded-xl border text-left text-xs font-semibold transition-colors cursor-pointer ${
+                className={`p-3 rounded-lg border text-left text-xs font-semibold transition-colors cursor-pointer ${
                   preferredLanguage === 'fr'
-                    ? 'border-teal-500 bg-teal-50/60 text-teal-950'
-                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                    ? 'border-[#9D7B43] dark:border-[#C5A15B] bg-[#C5A15B]/10 text-[#9D7B43] dark:text-[#C5A15B]'
+                    : 'border-[#E5DFD5] dark:border-[#2B261F] text-[#6B6357] dark:text-[#A8A196] hover:bg-[#F6F2EA] dark:hover:bg-[#1D1A15]'
                 }`}
               >
-                🇫🇷 Français
-                <span className="block text-[11px] font-normal text-slate-500 mt-0.5">
-                  Diffusions et interface en français
+                Français
+                <span className="block text-[11px] font-normal text-[#6B6357] dark:text-[#81796D] mt-0.5">
+                  Interface en français
                 </span>
               </button>
             </div>
@@ -363,115 +354,108 @@ export const RegistrationFlow: React.FC = () => {
             <Button variant="ghost" onClick={handleBack}>
               Back
             </Button>
-            <Button size="lg" variant="emerald" onClick={handleNext} icon={<ArrowRight className="w-4 h-4" />}>
-              Proceed to Review &amp; Consent
+            <Button size="lg" variant="gold" onClick={handleNext} icon={<ArrowRight className="w-4 h-4 text-black" />}>
+              Review and confirm
             </Button>
           </div>
         </div>
       )}
 
-      {/* STEP 3: Explicit Consents & Review Before Submission */}
+      {/* STEP 3: Consents & Review Before Submission */}
       {step === 3 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="rounded-2xl border p-6 sm:p-8 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs space-y-6">
           <div>
-            <h3 className="text-base font-bold text-slate-900 mb-1">
+            <h2 className="text-lg font-bold text-[#1C1915] dark:text-[#F5F0E6] mb-1">
               {t('reviewBeforeSubmit')}
-            </h3>
-            <p className="text-xs text-slate-500">
-              Please inspect your submitted details carefully.
+            </h2>
+            <p className="text-xs text-[#6B6357] dark:text-[#A8A196]">
+              Please check your information before joining.
             </p>
           </div>
 
           {/* Submission Summary Table */}
-          <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 text-xs sm:text-sm">
-            <div className="p-3 flex justify-between items-center">
-              <span className="text-slate-500">{t('displayNameLabel')}</span>
-              <span className="font-semibold text-slate-900">{displayName}</span>
+          <div className="rounded-xl border border-[#E5DFD5] dark:border-[#2B261F] divide-y divide-[#E5DFD5] dark:divide-[#2B261F] text-xs sm:text-sm">
+            <div className="p-3.5 flex justify-between items-center">
+              <span className="text-[#6B6357] dark:text-[#81796D]">{t('displayNameLabel')}</span>
+              <span className="font-semibold text-[#1C1915] dark:text-[#F5F0E6]">{displayName}</span>
             </div>
-            <div className="p-3 flex justify-between items-center">
-              <span className="text-slate-500">{t('countryLabel')}</span>
-              <span className="font-semibold text-slate-900">
-                {selectedCountry.flag} {selectedCountry.name} ({countryCode})
+            <div className="p-3.5 flex justify-between items-center">
+              <span className="text-[#6B6357] dark:text-[#81796D]">{t('countryLabel')}</span>
+              <span className="font-semibold text-[#1C1915] dark:text-[#F5F0E6]">
+                {selectedCountry.flag} {selectedCountry.name}
               </span>
             </div>
-            <div className="p-3 flex justify-between items-center">
-              <span className="text-slate-500">Normalized Phone (E.164)</span>
-              <span className="font-semibold font-mono text-slate-900">
+            <div className="p-3.5 flex justify-between items-center">
+              <span className="text-[#6B6357] dark:text-[#81796D]">WhatsApp number</span>
+              <span className="font-semibold font-mono text-[#9D7B43] dark:text-[#C5A15B]">
                 {phoneValidation.e164}
               </span>
             </div>
-            <div className="p-3 flex justify-between items-center">
-              <span className="text-slate-500">{t('langLabel')}</span>
+            <div className="p-3.5 flex justify-between items-center">
+              <span className="text-[#6B6357] dark:text-[#81796D]">{t('langLabel')}</span>
               <span className="font-semibold uppercase">{preferredLanguage}</span>
             </div>
             {referralCode && (
-              <div className="p-3 flex justify-between items-center">
-                <span className="text-slate-500">Referral Code</span>
-                <span className="font-mono text-slate-900">{referralCode}</span>
+              <div className="p-3.5 flex justify-between items-center">
+                <span className="text-[#6B6357] dark:text-[#81796D]">Invite code</span>
+                <span className="font-mono text-[#1C1915] dark:text-[#F5F0E6]">{referralCode}</span>
               </div>
             )}
           </div>
 
-          {/* Mandatory Consents */}
-          <div className="space-y-4 pt-2">
-            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Required Legal &amp; Voluntary Consents
-            </h4>
+          {/* Consents */}
+          <div className="space-y-3.5 pt-2">
+            <h3 className="text-xs font-semibold text-[#1C1915] dark:text-[#F5F0E6] uppercase tracking-wider">
+              Your sharing permissions
+            </h3>
 
             {/* Consent 1 */}
-            <label className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors cursor-pointer bg-slate-50/50">
+            <label className="flex items-start gap-3 p-4 rounded-xl border border-[#E5DFD5] dark:border-[#2B261F] hover:border-[#9D7B43] dark:hover:border-[#C5A15B] transition-colors cursor-pointer bg-[#F6F2EA]/70 dark:bg-[#1D1A15]">
               <input
                 type="checkbox"
                 checked={consentExport}
                 onChange={e => setConsentExport(e.target.checked)}
-                className="mt-1 w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 shrink-0"
+                className="mt-0.5 w-4 h-4 text-[#C5A15B] rounded border-[#E5DFD5] dark:border-[#2B261F] focus:ring-[#C5A15B] shrink-0 cursor-pointer"
               />
-              <div className="text-xs leading-relaxed text-slate-700">
-                <span className="font-semibold text-slate-900 block mb-0.5">
-                  1. Voluntary Contact Sharing Consent (Mandatory)
+              <div className="text-xs leading-relaxed text-[#1C1915] dark:text-[#F5F0E6]">
+                <span className="font-semibold block mb-0.5">
+                  1. Permission to share contact details
                 </span>
-                {t('consentCheck1')}
+                <span className="text-[#6B6357] dark:text-[#A8A196]">
+                  {t('consentCheck1')}
+                </span>
               </div>
             </label>
             {errors.consentExport && (
-              <p className="text-xs text-rose-600">{errors.consentExport}</p>
+              <p className="text-xs text-rose-500">{errors.consentExport}</p>
             )}
 
             {/* Consent 2 */}
-            <label className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors cursor-pointer bg-slate-50/50">
+            <label className="flex items-start gap-3 p-4 rounded-xl border border-[#E5DFD5] dark:border-[#2B261F] hover:border-[#9D7B43] dark:hover:border-[#C5A15B] transition-colors cursor-pointer bg-[#F6F2EA]/70 dark:bg-[#1D1A15]">
               <input
                 type="checkbox"
                 checked={acknowledgeNoWipe}
                 onChange={e => setAcknowledgeNoWipe(e.target.checked)}
-                className="mt-1 w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 shrink-0"
+                className="mt-0.5 w-4 h-4 text-[#C5A15B] rounded border-[#E5DFD5] dark:border-[#2B261F] focus:ring-[#C5A15B] shrink-0 cursor-pointer"
               />
-              <div className="text-xs leading-relaxed text-slate-700">
-                <span className="font-semibold text-slate-900 block mb-0.5">
-                  2. Contact File Permanence Acknowledgment (Mandatory)
+              <div className="text-xs leading-relaxed text-[#1C1915] dark:text-[#F5F0E6]">
+                <span className="font-semibold block mb-0.5">
+                  2. Understanding phone downloads
                 </span>
-                {t('consentCheck2')}
+                <span className="text-[#6B6357] dark:text-[#A8A196]">
+                  {t('consentCheck2')}
+                </span>
               </div>
             </label>
             {errors.acknowledgeNoWipe && (
-              <p className="text-xs text-rose-600">{errors.acknowledgeNoWipe}</p>
+              <p className="text-xs text-rose-500">{errors.acknowledgeNoWipe}</p>
             )}
           </div>
 
-          {/* Disclaimers */}
           <WhatsAppStatusNotice />
 
-          {/* Verification Notice */}
-          <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900">
-            <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-              <div>
-                <strong>Phase 1 Notice:</strong> In this phase, submitting registers your demo profile and logs double opt-in consent. Real SMS / WhatsApp OTP verification is scheduled for Phase 2.
-              </div>
-            </div>
-          </div>
-
           {errors.submit && (
-            <p className="text-xs text-rose-600 font-semibold">{errors.submit}</p>
+            <p className="text-xs text-rose-500 font-semibold">{errors.submit}</p>
           )}
 
           <div className="pt-4 flex items-center justify-between">
@@ -480,10 +464,10 @@ export const RegistrationFlow: React.FC = () => {
             </Button>
             <Button
               size="lg"
-              variant="emerald"
+              variant="gold"
               isLoading={isSubmitting}
               onClick={handleSubmit}
-              icon={<CheckCircle2 className="w-5 h-5" />}
+              icon={<Check className="w-4 h-4 text-black" />}
             >
               {t('submitRegistration')}
             </Button>

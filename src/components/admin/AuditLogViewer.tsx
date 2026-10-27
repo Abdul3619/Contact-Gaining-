@@ -4,12 +4,11 @@
  */
 
 import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
 import { mockDataService } from '../../services/mockDataService';
 import { AuditLogEvent } from '../../types';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
-import { Search, Filter, ClipboardList, Shield, RefreshCw } from 'lucide-react';
+import { Search, Filter, RefreshCw } from 'lucide-react';
 
 export const AuditLogViewer: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogEvent[]>(mockDataService.getAuditLogs());
@@ -37,17 +36,16 @@ export const AuditLogViewer: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-            9. Administrative Audit Log Viewer
+          <h1 className="text-xl sm:text-2xl font-bold text-[#25221D] dark:text-[#F5F0E6] tracking-tight">
+            Administrative Audit Log Viewer
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-[#736C61] dark:text-[#A89F91] mt-1">
             Immutable operational ledger recording consent transactions, releases, and config events.
           </p>
         </div>
         <Button
           variant="outline"
           size="sm"
-          className="border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
           onClick={handleRefresh}
           icon={<RefreshCw className="w-3.5 h-3.5" />}
         >
@@ -56,24 +54,24 @@ export const AuditLogViewer: React.FC = () => {
       </div>
 
       {/* Filter Toolbar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-[#FFFCF6] dark:bg-[#15130F] p-3 rounded-xl border border-[#DFD7C8] dark:border-[#2B261F] shadow-xs">
         <div className="flex-1 relative">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-[#736C61] dark:text-[#81796D] absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search events by action, actor, or details..."
-            className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder:text-slate-500 outline-hidden focus:border-teal-500"
+            className="w-full bg-[#EDE8DE] dark:bg-[#1D1A15] border border-[#DFD7C8] dark:border-[#2B261F] rounded-lg pl-9 pr-3 py-2 text-xs text-[#25221D] dark:text-[#F5F0E6] placeholder:text-[#81796D] outline-hidden focus:border-[#C5A15B]"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-500 shrink-0" />
+          <Filter className="w-4 h-4 text-[#736C61] dark:text-[#81796D] shrink-0" />
           <select
             value={roleFilter}
             onChange={e => setRoleFilter(e.target.value as any)}
-            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 outline-hidden cursor-pointer"
+            className="bg-[#EDE8DE] dark:bg-[#1D1A15] border border-[#DFD7C8] dark:border-[#2B261F] rounded-lg px-3 py-2 text-xs text-[#25221D] dark:text-[#F5F0E6] outline-hidden cursor-pointer"
           >
             <option value="all">All Roles</option>
             <option value="admin">Admin Actions</option>
@@ -84,11 +82,11 @@ export const AuditLogViewer: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-xs">
+      <div className="bg-[#FFFCF6] dark:bg-[#15130F] border border-[#DFD7C8] dark:border-[#2B261F] rounded-xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider bg-slate-900/50">
+              <tr className="border-b border-[#DFD7C8] dark:border-[#2B261F] text-[#736C61] dark:text-[#A89F91] font-semibold uppercase tracking-wider bg-[#EDE8DE]/50 dark:bg-[#1D1A15]/50">
                 <th className="py-3 px-4">Timestamp</th>
                 <th className="py-3 px-4">Action Key</th>
                 <th className="py-3 px-4">Actor</th>
@@ -97,35 +95,35 @@ export const AuditLogViewer: React.FC = () => {
                 <th className="py-3 px-4 text-right">IP Sample</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300 font-mono">
+            <tbody className="divide-y divide-[#DFD7C8] dark:divide-[#2B261F] text-[#25221D] dark:text-[#F5F0E6] font-mono">
               {filteredLogs.map(log => (
-                <tr key={log.id} className="hover:bg-slate-900/40 transition-colors">
-                  <td className="py-3 px-4 text-slate-400 whitespace-nowrap text-[11px]">
+                <tr key={log.id} className="hover:bg-[#EDE8DE]/40 dark:hover:bg-[#1D1A15]/40 transition-colors">
+                  <td className="py-3 px-4 text-[#736C61] dark:text-[#A89F91] whitespace-nowrap text-[11px]">
                     {new Date(log.timestamp).toLocaleString()}
                   </td>
-                  <td className="py-3 px-4 font-semibold text-teal-300 whitespace-nowrap">
+                  <td className="py-3 px-4 font-semibold text-[#9D7B43] dark:text-[#C5A15B] whitespace-nowrap">
                     {log.action}
                   </td>
-                  <td className="py-3 px-4 text-white whitespace-nowrap font-sans text-xs">
+                  <td className="py-3 px-4 text-[#25221D] dark:text-[#F5F0E6] whitespace-nowrap font-sans text-xs">
                     {log.actor}
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap">
                     <Badge
                       variant={
                         log.actorRole === 'admin'
-                          ? 'warning'
+                          ? 'gold'
                           : log.actorRole === 'system'
-                          ? 'info'
-                          : 'neutral'
+                          ? 'neutral'
+                          : 'bronze'
                       }
                     >
                       {log.actorRole}
                     </Badge>
                   </td>
-                  <td className="py-3 px-4 text-slate-300 font-sans text-xs">
+                  <td className="py-3 px-4 text-[#736C61] dark:text-[#A89F91] font-sans text-xs">
                     {log.details}
                   </td>
-                  <td className="py-3 px-4 text-right text-slate-500 text-[10px]">
+                  <td className="py-3 px-4 text-right text-[#736C61] dark:text-[#81796D] text-[10px]">
                     {log.ipAddressSample}
                   </td>
                 </tr>

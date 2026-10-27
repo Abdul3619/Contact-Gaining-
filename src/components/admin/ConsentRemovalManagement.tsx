@@ -3,20 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { mockDataService } from '../../services/mockDataService';
-import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
-import { Modal } from '../common/Modal';
-import {
-  FileCheck2,
-  Trash2,
-  ShieldAlert,
-  CheckCircle2,
-  RotateCcw,
-  Sparkles,
-} from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 
 export const ConsentRemovalManagement: React.FC = () => {
   const { allMembers, refreshData, addToast } = useApp();
@@ -40,48 +31,48 @@ export const ConsentRemovalManagement: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-          3. Consent &amp; Removal Requests
+        <h1 className="text-xl sm:text-2xl font-bold text-[#25221D] dark:text-[#F5F0E6] tracking-tight">
+          Consent &amp; Removal Requests
         </h1>
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="text-xs text-[#736C61] dark:text-[#A89F91] mt-1">
           Review queue of participants requesting contact withdrawal or removal from future release distributions.
         </p>
       </div>
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
-          <span className="text-xs font-semibold text-slate-500 uppercase">Total Withdrawn</span>
-          <div className="text-2xl font-bold font-mono text-rose-400 mt-1 tabular-nums">
+        <div className="bg-[#FFFCF6] dark:bg-[#15130F] border border-[#DFD7C8] dark:border-[#2B261F] rounded-xl p-4 shadow-xs">
+          <span className="text-xs font-semibold text-[#736C61] dark:text-[#81796D] uppercase">Total Withdrawn</span>
+          <div className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400 mt-1 tabular-nums">
             {removalRequests.length}
           </div>
-          <span className="text-[11px] text-slate-500 mt-1 block">Excluded from all future exports</span>
+          <span className="text-[11px] text-[#736C61] dark:text-[#81796D] mt-1 block">Excluded from all future exports</span>
         </div>
 
-        <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
-          <span className="text-xs font-semibold text-slate-500 uppercase">Export Sanitization</span>
-          <div className="text-sm font-bold text-emerald-400 mt-2 flex items-center gap-1.5">
+        <div className="bg-[#FFFCF6] dark:bg-[#15130F] border border-[#DFD7C8] dark:border-[#2B261F] rounded-xl p-4 shadow-xs">
+          <span className="text-xs font-semibold text-[#736C61] dark:text-[#81796D] uppercase">Export Sanitization</span>
+          <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4" />
             <span>Automated Scrub Active</span>
           </div>
-          <span className="text-[11px] text-slate-500 mt-1 block">Withdrawn numbers purged at generation</span>
+          <span className="text-[11px] text-[#736C61] dark:text-[#81796D] mt-1 block">Withdrawn numbers purged at generation</span>
         </div>
 
-        <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
-          <span className="text-xs font-semibold text-slate-500 uppercase">Compliance Standard</span>
-          <div className="text-sm font-bold text-teal-300 mt-2">
+        <div className="bg-[#FFFCF6] dark:bg-[#15130F] border border-[#DFD7C8] dark:border-[#2B261F] rounded-xl p-4 shadow-xs">
+          <span className="text-xs font-semibold text-[#736C61] dark:text-[#81796D] uppercase">Compliance Standard</span>
+          <div className="text-sm font-bold text-[#9D7B43] dark:text-[#C5A15B] mt-2">
             GDPR &amp; International Opt-Out
           </div>
-          <span className="text-[11px] text-slate-500 mt-1 block">Immutable audit log maintained</span>
+          <span className="text-[11px] text-[#736C61] dark:text-[#81796D] mt-1 block">Immutable audit log maintained</span>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-xs">
+      <div className="bg-[#FFFCF6] dark:bg-[#15130F] border border-[#DFD7C8] dark:border-[#2B261F] rounded-xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider bg-slate-900/50">
+              <tr className="border-b border-[#DFD7C8] dark:border-[#2B261F] text-[#736C61] dark:text-[#A89F91] font-semibold uppercase tracking-wider bg-[#EDE8DE]/50 dark:bg-[#1D1A15]/50">
                 <th className="py-3 px-4">Member</th>
                 <th className="py-3 px-4">Phone (E.164)</th>
                 <th className="py-3 px-4">Reason for Withdrawal</th>
@@ -90,26 +81,26 @@ export const ConsentRemovalManagement: React.FC = () => {
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+            <tbody className="divide-y divide-[#DFD7C8] dark:divide-[#2B261F] text-[#25221D] dark:text-[#F5F0E6]">
               {removalRequests.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-slate-500">
+                  <td colSpan={6} className="text-center py-8 text-[#736C61] dark:text-[#81796D]">
                     No active removal or withdrawal requests.
                   </td>
                 </tr>
               ) : (
                 removalRequests.map(m => (
-                  <tr key={m.id} className="hover:bg-slate-900/40 transition-colors">
-                    <td className="py-3 px-4 font-semibold text-white">
+                  <tr key={m.id} className="hover:bg-[#EDE8DE]/40 dark:hover:bg-[#1D1A15]/40 transition-colors">
+                    <td className="py-3 px-4 font-semibold text-[#25221D] dark:text-[#F5F0E6]">
                       {m.displayName}
                     </td>
-                    <td className="py-3 px-4 font-mono text-teal-300">
+                    <td className="py-3 px-4 font-mono text-[#9D7B43] dark:text-[#C5A15B]">
                       {m.normalizedE164}
                     </td>
-                    <td className="py-3 px-4 text-slate-400">
+                    <td className="py-3 px-4 text-[#736C61] dark:text-[#A89F91]">
                       {m.consent.revocationReason || 'Voluntary removal requested via profile'}
                     </td>
-                    <td className="py-3 px-4 font-mono text-[11px] text-slate-500">
+                    <td className="py-3 px-4 font-mono text-[11px] text-[#736C61] dark:text-[#81796D]">
                       {m.consent.revokedAt ? new Date(m.consent.revokedAt).toLocaleString() : 'Recent'}
                     </td>
                     <td className="py-3 px-4">
@@ -118,7 +109,7 @@ export const ConsentRemovalManagement: React.FC = () => {
                     <td className="py-3 px-4 text-right">
                       <button
                         onClick={() => handleReactivate(m.id)}
-                        className="px-2.5 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 text-teal-300 transition-colors cursor-pointer"
+                        className="px-2.5 py-1 text-xs rounded-md bg-[#EDE8DE] dark:bg-[#1D1A15] hover:bg-[#DFD7C8] dark:hover:bg-[#2B261F] text-[#9D7B43] dark:text-[#C5A15B] border border-[#DFD7C8] dark:border-[#2B261F] transition-colors cursor-pointer font-medium"
                       >
                         Reinstate Consent
                       </button>

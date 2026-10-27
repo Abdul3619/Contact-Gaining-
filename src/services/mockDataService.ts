@@ -7,7 +7,7 @@ import {
   Member,
   ContactRelease,
   DownloadRecord,
-  WeeklyAllowanceConfig,
+  GrowthPhaseConfig,
   PackagePlan,
   AbuseReport,
   AuditLogEvent,
@@ -18,7 +18,7 @@ import {
 import {
   INITIAL_MEMBERS,
   INITIAL_RELEASES,
-  INITIAL_ALLOWANCE_CONFIG,
+  INITIAL_GROWTH_CONFIG,
   INITIAL_PACKAGES,
   INITIAL_ABUSE_REPORTS,
   INITIAL_AUDIT_LOGS,
@@ -27,20 +27,20 @@ import {
 import { SampleVCardContact, generateVcfString, triggerVcfDownload } from './vcfGenerator';
 
 const STORAGE_KEYS = {
-  MEMBERS: 'globalsphere_mock_members_v1',
-  RELEASES: 'globalsphere_mock_releases_v1',
-  CONFIG: 'globalsphere_mock_config_v1',
-  PACKAGES: 'globalsphere_mock_packages_v1',
-  REPORTS: 'globalsphere_mock_reports_v1',
-  LOGS: 'globalsphere_mock_logs_v1',
-  SETTINGS: 'globalsphere_mock_settings_v1',
-  CURRENT_MEMBER_ID: 'globalsphere_mock_active_member_id',
+  MEMBERS: 'contact_gaining_mock_members_v2',
+  RELEASES: 'contact_gaining_mock_releases_v2',
+  CONFIG: 'contact_gaining_mock_config_v2',
+  PACKAGES: 'contact_gaining_mock_packages_v2',
+  REPORTS: 'contact_gaining_mock_reports_v2',
+  LOGS: 'contact_gaining_mock_logs_v2',
+  SETTINGS: 'contact_gaining_mock_settings_v2',
+  CURRENT_MEMBER_ID: 'contact_gaining_mock_active_member_id',
 };
 
 class MockDataService {
   private members: Member[];
   private releases: ContactRelease[];
-  private allowanceConfig: WeeklyAllowanceConfig;
+  private growthConfig: GrowthPhaseConfig;
   private packages: PackagePlan[];
   private reports: AbuseReport[];
   private logs: AuditLogEvent[];
@@ -50,7 +50,7 @@ class MockDataService {
   constructor() {
     this.members = this.load(STORAGE_KEYS.MEMBERS, INITIAL_MEMBERS);
     this.releases = this.load(STORAGE_KEYS.RELEASES, INITIAL_RELEASES);
-    this.allowanceConfig = this.load(STORAGE_KEYS.CONFIG, INITIAL_ALLOWANCE_CONFIG);
+    this.growthConfig = this.load(STORAGE_KEYS.CONFIG, INITIAL_GROWTH_CONFIG);
     this.packages = this.load(STORAGE_KEYS.PACKAGES, INITIAL_PACKAGES);
     this.reports = this.load(STORAGE_KEYS.REPORTS, INITIAL_ABUSE_REPORTS);
     this.logs = this.load(STORAGE_KEYS.LOGS, INITIAL_AUDIT_LOGS);
@@ -110,7 +110,6 @@ class MockDataService {
     consentedToExport: boolean;
     acknowledgedNoRemoteWipe: boolean;
   }): { success: boolean; member: Member; error?: string } {
-    // Check duplicate phone in demonstration list
     const existing = this.members.find(m => m.normalizedE164 === payload.normalizedE164);
     if (existing) {
       return {
@@ -121,7 +120,7 @@ class MockDataService {
     }
 
     const newId = `mem_user_${Date.now()}`;
-    const generatedRefCode = `GS-${payload.displayName.replace(/[^a-zA-Z]/g, '').slice(0, 5).toUpperCase()}${Math.floor(10 + Math.random() * 90)}`;
+    const generatedRefCode = `CG-${payload.displayName.replace(/[^a-zA-Z]/g, '').slice(0, 5).toUpperCase()}${Math.floor(10 + Math.random() * 90)}`;
 
     const newMember: Member = {
       id: newId,
@@ -139,13 +138,14 @@ class MockDataService {
       downloadCount: 0,
       totalReferrals: 0,
       isSampleRecord: true,
+      previouslyAllocatedContactIds: [],
       consent: {
         id: `cst_${Date.now()}`,
         memberId: newId,
         timestamp: new Date().toISOString(),
         consentedToExport: payload.consentedToExport,
         acknowledgedNoRemoteWipe: payload.acknowledgedNoRemoteWipe,
-        termsVersion: 'v1.0-pilot',
+        termsVersion: 'v2.0-growth',
         ipHashSample: 'client-opt-in',
       },
     };
@@ -154,9 +154,9 @@ class MockDataService {
     this.save(STORAGE_KEYS.MEMBERS, this.members);
     this.setActiveMemberId(newId);
 
-    // Update eligible count in config
-    this.allowanceConfig.currentEligibleCount += 1;
-    this.save(STORAGE_KEYS.CONFIG, this.allowanceConfig);
+    // Update eligible count
+    this.growthConfig.currentEligibleCount += 1;
+    this.save(STORAGE_KEYS.CONFIG, this.growthConfig);
 
     this.logAuditEvent({
       actor: newMember.displayName,
@@ -199,10 +199,9 @@ class MockDataService {
     this.members[idx].eligibility = 'withdrawn';
     this.save(STORAGE_KEYS.MEMBERS, this.members);
 
-    // Decrement eligible count
-    if (this.allowanceConfig.currentEligibleCount > 0) {
-      this.allowanceConfig.currentEligibleCount -= 1;
-      this.save(STORAGE_KEYS.CONFIG, this.allowanceConfig);
+    if (this.growthConfig.currentEligibleCount > 0) {
+      this.growthConfig.currentEligibleCount -= 1;
+      this.save(STORAGE_KEYS.CONFIG, this.growthConfig);
     }
 
     this.logAuditEvent({
@@ -224,7 +223,7 @@ class MockDataService {
     this.save(STORAGE_KEYS.MEMBERS, this.members);
 
     this.logAuditEvent({
-      actor: 'admin@globalsphere.internal',
+      actor: 'admin@contactgaining.internal',
       actorRole: 'admin',
       action: 'ELIGIBILITY_CHANGED',
       details: `Admin changed member ${this.members[idx].displayName} eligibility from ${old} to ${newEligibility}.`,
@@ -250,10 +249,10 @@ class MockDataService {
       releaseNumber: nextNumber,
       releaseTitle: payload.releaseTitle,
       publishedAt: new Date().toISOString(),
-      totalEligibleContacts: this.allowanceConfig.currentEligibleCount,
+      totalEligibleContacts: this.growthConfig.currentEligibleCount,
       incrementalNewContacts: payload.incrementalNewContacts,
       fileSizeBytes: Math.round(payload.incrementalNewContacts * 1250),
-      hashChecksum: `sha256-demo${Math.random().toString(36).substring(2, 9)}`,
+      hashChecksum: `sha256-cg${Math.random().toString(36).substring(2, 9)}`,
       status: 'published',
       descriptionEn: payload.descriptionEn,
       descriptionFr: payload.descriptionFr,
@@ -263,7 +262,7 @@ class MockDataService {
     this.save(STORAGE_KEYS.RELEASES, this.releases);
 
     this.logAuditEvent({
-      actor: 'admin@globalsphere.internal',
+      actor: 'admin@contactgaining.internal',
       actorRole: 'admin',
       action: 'RELEASE_CREATED',
       details: `Published Contact Release #${nextNumber}: ${payload.releaseTitle} (${payload.incrementalNewContacts} incremental contacts).`,
@@ -272,7 +271,7 @@ class MockDataService {
     return newRelease;
   }
 
-  // Simulated Download Execution
+  // Download Execution with Growth-Stage Rules (no arbitrary weekly cap, self-exclusion)
   simulateDownload(
     releaseId: string,
     type: 'full' | 'incremental',
@@ -295,22 +294,22 @@ class MockDataService {
       };
     }
 
-    // Generate safe sample contacts
-    const countToExport = type === 'incremental' ? Math.min(15, release.incrementalNewContacts) : Math.min(48, release.totalEligibleContacts);
-    const sampleContacts: SampleVCardContact[] = [];
-
+    // Generate safe sample contacts, filtering out self
     const samplePool = [
       { name: 'Elena Rostova', phone: '+44 7700 900234', country: 'United Kingdom', org: 'Elena Digital' },
       { name: 'Tariq Mansour', phone: '+971 50 000 8921', country: 'UAE', org: 'Mansour Ventures' },
       { name: 'Chidinma Okafor', phone: '+234 800 000 7712', country: 'Nigeria', org: 'Okafor Logistics' },
-      { name: 'Jean-Paul Koffi', phone: '+225 07 00 99 88', country: 'Côte d\'Ivoire', org: 'Koffi & Partners' },
+      { name: 'Jean-Paul Koffi', phone: '+225 07 00 99 88', country: "Côte d'Ivoire", org: 'Koffi & Partners' },
       { name: 'Sylvie Marchand', phone: '+33 6 00 22 33 44', country: 'France', org: 'Marchand Mode' },
       { name: 'Kweku Addo', phone: '+233 24 000 5566', country: 'Ghana', org: 'GoldCoast Media' },
       { name: 'Amina Kimani', phone: '+254 700 00 4433', country: 'Kenya', org: 'Kimani Solar' },
       { name: 'Rajesh Sharma', phone: '+91 98000 12345', country: 'India', org: 'Sharma Software' },
       { name: 'Camila Santos', phone: '+55 11 90000 7788', country: 'Brazil', org: 'Santos Consultoria' },
       { name: 'Maximilian Weber', phone: '+49 150 000 1122', country: 'Germany', org: 'Weber Export' },
-    ];
+    ].filter(p => p.phone !== member.normalizedE164); // NEVER include own contact
+
+    const countToExport = type === 'incremental' ? Math.min(15, release.incrementalNewContacts) : Math.min(48, release.totalEligibleContacts);
+    const sampleContacts: SampleVCardContact[] = [];
 
     for (let i = 0; i < countToExport; i++) {
       const template = samplePool[i % samplePool.length];
@@ -320,18 +319,22 @@ class MockDataService {
         phone: template.phone,
         country: template.country,
         organization: template.org,
-        note: `Sample member from ${release.releaseTitle}`,
+        note: `Contact Gaining Sample Member (${release.releaseTitle})`,
       });
     }
 
     const vcfBlob = generateVcfString(sampleContacts, release.releaseTitle);
-    const fileName = `GlobalSphere_Release_${release.releaseNumber}_${type}_Sample.vcf`;
+    const fileName = `ContactGaining_Release_${release.releaseNumber}_${type}_Sample.vcf`;
     triggerVcfDownload(vcfBlob, fileName);
 
-    // Update member download count
+    // Update member download count & previously allocated records
     const memberIdx = this.members.findIndex(m => m.id === member.id);
     if (memberIdx !== -1) {
       this.members[memberIdx].downloadCount += 1;
+      const prev = this.members[memberIdx].previouslyAllocatedContactIds || [];
+      if (!prev.includes(release.id)) {
+        this.members[memberIdx].previouslyAllocatedContactIds = [...prev, release.id];
+      }
       this.save(STORAGE_KEYS.MEMBERS, this.members);
     }
 
@@ -350,29 +353,38 @@ class MockDataService {
       actor: member.displayName,
       actorRole: 'member',
       action: type === 'incremental' ? 'VCF_DOWNLOAD_INCREMENTAL' : 'VCF_DOWNLOAD_FULL',
-      details: `Generated and downloaded sample VCF file: ${fileName} (${countToExport} demo contacts).`,
+      details: `Generated and downloaded sample VCF: ${fileName} (${countToExport} demo contacts).`,
     });
 
     return { success: true, record };
   }
 
-  // Allowance & Config
-  getAllowanceConfig(): WeeklyAllowanceConfig {
-    return { ...this.allowanceConfig };
+  // Growth Config
+  getGrowthConfig(): GrowthPhaseConfig {
+    return { ...this.growthConfig };
   }
 
-  updateAllowanceConfig(updates: Partial<WeeklyAllowanceConfig>): boolean {
-    this.allowanceConfig = { ...this.allowanceConfig, ...updates };
-    this.save(STORAGE_KEYS.CONFIG, this.allowanceConfig);
+  // Alias for backward compatibility
+  getAllowanceConfig(): GrowthPhaseConfig {
+    return this.getGrowthConfig();
+  }
+
+  updateGrowthConfig(updates: Partial<GrowthPhaseConfig>): boolean {
+    this.growthConfig = { ...this.growthConfig, ...updates };
+    this.save(STORAGE_KEYS.CONFIG, this.growthConfig);
 
     this.logAuditEvent({
-      actor: 'admin@globalsphere.internal',
+      actor: 'admin@contactgaining.internal',
       actorRole: 'admin',
-      action: 'ALLOWANCE_CONFIG_UPDATED',
-      details: `Weekly allowance parameters updated. Threshold: ${this.allowanceConfig.pilotMonetizationThreshold}, Allowance: ${this.allowanceConfig.freeWeeklyContactsPerMember}`,
+      action: 'GROWTH_CONFIG_UPDATED',
+      details: `Growth parameters updated. Threshold: ${this.growthConfig.futureMonetizationEvaluationThreshold}, ReleaseDay: ${this.growthConfig.incrementalReleaseDay}`,
     });
 
     return true;
+  }
+
+  updateAllowanceConfig(updates: Partial<GrowthPhaseConfig>): boolean {
+    return this.updateGrowthConfig(updates);
   }
 
   // Packages
@@ -388,7 +400,7 @@ class MockDataService {
     this.save(STORAGE_KEYS.PACKAGES, this.packages);
 
     this.logAuditEvent({
-      actor: 'admin@globalsphere.internal',
+      actor: 'admin@contactgaining.internal',
       actorRole: 'admin',
       action: 'PACKAGE_UPDATED',
       details: `Package plan "${this.packages[idx].name}" updated. Allowance: ${this.packages[idx].contactAllowance}, Price: $${this.packages[idx].priceUSD}`,
@@ -443,7 +455,7 @@ class MockDataService {
     this.save(STORAGE_KEYS.REPORTS, this.reports);
 
     this.logAuditEvent({
-      actor: 'admin@globalsphere.internal',
+      actor: 'admin@contactgaining.internal',
       actorRole: 'admin',
       action: 'REPORT_STATUS_CHANGED',
       details: `Abuse report ${reportId} marked as ${status}.`,
@@ -482,7 +494,7 @@ class MockDataService {
     this.save(STORAGE_KEYS.SETTINGS, this.settings);
 
     this.logAuditEvent({
-      actor: 'admin@globalsphere.internal',
+      actor: 'admin@contactgaining.internal',
       actorRole: 'admin',
       action: 'SYSTEM_SETTINGS_UPDATED',
       details: `System operational settings modified: ${Object.keys(updates).join(', ')}`,
@@ -504,7 +516,7 @@ class MockDataService {
 
     this.members = [...INITIAL_MEMBERS];
     this.releases = [...INITIAL_RELEASES];
-    this.allowanceConfig = { ...INITIAL_ALLOWANCE_CONFIG };
+    this.growthConfig = { ...INITIAL_GROWTH_CONFIG };
     this.packages = [...INITIAL_PACKAGES];
     this.reports = [...INITIAL_ABUSE_REPORTS];
     this.logs = [...INITIAL_AUDIT_LOGS];

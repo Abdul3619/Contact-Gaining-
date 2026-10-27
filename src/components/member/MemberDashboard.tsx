@@ -7,22 +7,16 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { mockDataService } from '../../services/mockDataService';
 import { Button } from '../common/Button';
-import { Badge } from '../common/Badge';
 import { WhatsAppStatusNotice } from '../common/Disclaimers';
+import { FounderCard } from '../common/FounderCard';
 import {
   DownloadCloud,
-  FileCheck2,
-  Calendar,
-  Users2,
-  Shield,
-  ArrowRight,
-  Sparkles,
-  ExternalLink,
-  HelpCircle,
-  Clock,
-  Layers,
   Copy,
   Check,
+  ArrowRight,
+  CheckCircle2,
+  Users2,
+  Calendar,
 } from 'lucide-react';
 
 export const MemberDashboard: React.FC = () => {
@@ -30,14 +24,14 @@ export const MemberDashboard: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const config = mockDataService.getAllowanceConfig();
+  const growthConfig = mockDataService.getGrowthConfig();
   const releases = mockDataService.getReleases();
   const latestRelease = releases[0];
 
   const handleCopyReferral = () => {
-    navigator.clipboard?.writeText(`https://globalsphere.community/join?ref=${activeMember.referralCode}`);
+    navigator.clipboard?.writeText(`https://contactgaining.community/join?ref=${activeMember.referralCode}`);
     setCopied(true);
-    addToast('Demonstration referral invitation link copied.', 'success');
+    addToast('Your invite link has been copied.', 'success');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -48,343 +42,247 @@ export const MemberDashboard: React.FC = () => {
       setIsDownloading(false);
       if (res.success) {
         addToast(
-          `Generated sample ${type} .vcf file (${res.record?.contactCount} demo contacts). Check your downloads!`,
+          'Contact file (.vcf) downloaded. Ready to import into your contacts.',
           'success'
         );
       } else {
-        addToast(res.error || 'Download failed', 'error');
+        addToast(res.error || 'Unable to download file. Please try again.', 'error');
       }
-    }, 700);
+    }, 600);
   };
 
   return (
     <div className="space-y-6">
-      {/* Top Welcome Section */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      {/* Dismissible Founder Introduction Card */}
+      <FounderCard variant="dashboard" />
+
+      {/* Top Welcome Card */}
+      <div className="rounded-2xl border p-6 sm:p-7 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              {t('dashWelcome')}
+          <div className="flex items-center gap-2 mb-1 text-xs text-[#6B6357] dark:text-[#A8A196]">
+            <span>{t('dashWelcome')}</span>
+            <span>·</span>
+            <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Active Member
             </span>
-            <span className="text-slate-300">·</span>
-            <span className="text-xs text-teal-700 font-medium">Free Pilot Member</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#1C1915] dark:text-[#F5F0E6] tracking-tight">
             {activeMember.displayName}
           </h1>
-          <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-slate-500 font-mono">
-            <span>{activeMember.normalizedE164}</span>
+          <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-[#6B6357] dark:text-[#A8A196]">
+            <span className="font-mono text-[#9D7B43] dark:text-[#C5A15B]">{activeMember.normalizedE164}</span>
             <span>·</span>
-            <span>Country: {activeMember.countryCode}</span>
-            <span>·</span>
-            <Badge variant={activeMember.eligibility === 'eligible' ? 'success' : 'warning'}>
-              {activeMember.eligibility}
-            </Badge>
+            <span>Based in {activeMember.countryCode}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setMemberScreen('profile')}
           >
-            Manage Consent
+            My details &amp; consent
           </Button>
           <Button
-            variant="emerald"
+            variant="gold"
             size="sm"
             onClick={() => setMemberScreen('downloads')}
-            icon={<DownloadCloud className="w-4 h-4" />}
+            icon={<DownloadCloud className="w-4 h-4 text-black" />}
           >
-            Download Centre
+            Download contacts
           </Button>
         </div>
       </div>
 
       {/* KPI Cards Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Free Weekly Allowance */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between">
+        {/* Available New Contacts */}
+        <div className="rounded-2xl border p-5 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                {t('dashWeeklyAllowance')}
+              <span className="text-xs font-semibold text-[#6B6357] dark:text-[#A8A196]">
+                {t('dashGrowthAllowance')}
               </span>
-              <span className="text-xs text-teal-600 font-semibold">100% Free</span>
+              <span className="text-xs text-[#9D7B43] dark:text-[#C5A15B] font-semibold">Open access</span>
             </div>
-            <div className="text-3xl font-bold font-mono tabular-nums text-slate-900">
-              {config.freeWeeklyContactsPerMember}
+            <div className="text-3xl font-bold font-mono text-[#1C1915] dark:text-[#F5F0E6] tabular-nums">
+              +{latestRelease?.incrementalNewContacts || 48}
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              New contacts available to export this week
-            </p>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Resets every {config.incrementalReleaseDay}</span>
-            <Clock className="w-3.5 h-3.5" />
-          </div>
+          <p className="text-[11px] text-[#6B6357] dark:text-[#A8A196] mt-3">
+            {t('dashAllowanceRemaining')}
+          </p>
         </div>
 
-        {/* New Contacts Available */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between">
+        {/* Directory Size */}
+        <div className="rounded-2xl border p-5 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                {t('dashNewAvailable')}
+              <span className="text-xs font-semibold text-[#6B6357] dark:text-[#A8A196]">
+                Total verified members
               </span>
-              <span className="text-xs text-emerald-600 font-semibold font-mono">
-                +{latestRelease.incrementalNewContacts}
-              </span>
+              <Users2 className="w-4 h-4 text-[#9D7B43] dark:text-[#C5A15B]" />
             </div>
-            <div className="text-3xl font-bold font-mono tabular-nums text-slate-900">
-              {latestRelease.incrementalNewContacts}
+            <div className="text-3xl font-bold font-mono text-[#1C1915] dark:text-[#F5F0E6] tabular-nums">
+              {latestRelease?.totalEligibleContacts || 48}
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              In Release #{latestRelease.releaseNumber}
-            </p>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Deduplicated E.164</span>
-            <FileCheck2 className="w-3.5 h-3.5" />
-          </div>
+          <p className="text-[11px] text-[#6B6357] dark:text-[#A8A196] mt-3">
+            Across 10 international regions
+          </p>
         </div>
 
-        {/* Total Directory Size */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between">
+        {/* Next Scheduled Batch */}
+        <div className="rounded-2xl border p-5 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Total Consented Cohort
+              <span className="text-xs font-semibold text-[#6B6357] dark:text-[#A8A196]">
+                {t('dashNextRelease')}
               </span>
-              <span className="text-xs text-slate-400 font-mono">Directory</span>
+              <Calendar className="w-4 h-4 text-[#9D7B43] dark:text-[#C5A15B]" />
             </div>
-            <div className="text-3xl font-bold font-mono tabular-nums text-slate-900">
-              {latestRelease.totalEligibleContacts}
+            <div className="text-base font-bold text-[#1C1915] dark:text-[#F5F0E6]">
+              {growthConfig.incrementalReleaseDay || 'Friday'}
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Verified opt-in members worldwide
-            </p>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Target: {config.pilotMonetizationThreshold} for Phase 2</span>
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-          </div>
+          <p className="text-[11px] text-[#6B6357] dark:text-[#A8A196] mt-3 font-mono">
+            {t('dashNextReleaseTime')}
+          </p>
         </div>
 
-        {/* Referrals */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between">
+        {/* Invite Count */}
+        <div className="rounded-2xl border p-5 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                {t('dashReferralCount')}
+              <span className="text-xs font-semibold text-[#6B6357] dark:text-[#A8A196]">
+                Invited members
               </span>
-              <span className="text-xs text-teal-600 font-mono">{activeMember.referralCode}</span>
+              <span className="text-xs font-mono font-semibold text-[#9D7B43] dark:text-[#C5A15B]">
+                {activeMember.referralCode}
+              </span>
             </div>
-            <div className="text-3xl font-bold font-mono tabular-nums text-slate-900">
+            <div className="text-3xl font-bold font-mono text-[#1C1915] dark:text-[#F5F0E6] tabular-nums">
               {activeMember.totalReferrals}
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Colleagues registered via your code
-            </p>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Invites rewarded in Phase 2</span>
-            <Users2 className="w-3.5 h-3.5" />
-          </div>
+          <p className="text-[11px] text-[#6B6357] dark:text-[#A8A196] mt-3">
+            Members joined with your invite
+          </p>
         </div>
       </div>
 
-      {/* Main Grid: Quick Downloads & Release Cycle */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (2 Cols): Quick Download Actions */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
+      {/* Two Column Layout: Quick Downloads & Invite Link */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Quick Downloads */}
+        <div className="rounded-2xl border p-6 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs space-y-4">
+          <div>
+            <h2 className="text-base font-bold text-[#1C1915] dark:text-[#F5F0E6]">
+              {t('dashQuickDownload')}
+            </h2>
+            <p className="text-xs text-[#6B6357] dark:text-[#A8A196] mt-0.5">
+              Get the latest member contacts in a clean .vcf file.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {/* Newly Joined Contact Batch */}
+            <div className="p-4 rounded-xl border border-[#E5DFD5] dark:border-[#2B261F] bg-[#F6F2EA]/70 dark:bg-[#1D1A15] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  {t('dashQuickDownload')}
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Export standard RFC 2426 vCard (.vcf) contacts directly into your phone.
-                </p>
+                <span className="text-xs font-semibold text-[#1C1915] dark:text-[#F5F0E6] block">
+                  New members since your last download
+                </span>
+                <span className="text-[11px] text-[#6B6357] dark:text-[#A8A196]">
+                  +{latestRelease?.incrementalNewContacts || 48} newly added contacts
+                </span>
               </div>
-              <Badge variant="pilot">VCF 3.0 Standard</Badge>
+              <Button
+                size="sm"
+                variant="gold"
+                isLoading={isDownloading}
+                onClick={() => handleQuickDownload('incremental')}
+                icon={<DownloadCloud className="w-4 h-4 text-black" />}
+              >
+                Download (.vcf)
+              </Button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Incremental Download */}
-              <div className="rounded-xl border border-teal-200 bg-teal-50/50 p-4 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-teal-900 uppercase">
-                      Recommended
-                    </span>
-                    <span className="text-xs font-mono text-teal-700 font-semibold">
-                      +{latestRelease.incrementalNewContacts} New
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-900 mb-1">
-                    Incremental Batch
-                  </h3>
-                  <p className="text-xs text-slate-600 leading-relaxed mb-4">
-                    Download only the newly verified contacts added in Release #{latestRelease.releaseNumber}. Prevents duplicates on your phone.
-                  </p>
-                </div>
-
-                <Button
-                  variant="emerald"
-                  isLoading={isDownloading}
-                  onClick={() => handleQuickDownload('incremental')}
-                  className="w-full"
-                  icon={<DownloadCloud className="w-4 h-4" />}
-                >
-                  Download Incremental (.vcf)
-                </Button>
+            {/* Complete Directory */}
+            <div className="p-4 rounded-xl border border-[#E5DFD5] dark:border-[#2B261F] bg-[#F6F2EA]/70 dark:bg-[#1D1A15] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <span className="text-xs font-semibold text-[#1C1915] dark:text-[#F5F0E6] block">
+                  Complete member directory
+                </span>
+                <span className="text-[11px] text-[#6B6357] dark:text-[#A8A196]">
+                  {latestRelease?.totalEligibleContacts || 48} verified members
+                </span>
               </div>
-
-              {/* Full List Recovery */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-slate-500 uppercase">
-                      Archive Recovery
-                    </span>
-                    <span className="text-xs font-mono text-slate-700 font-semibold">
-                      48 Sample Entries
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-900 mb-1">
-                    Full Directory Export
-                  </h3>
-                  <p className="text-xs text-slate-600 leading-relaxed mb-4">
-                    Download the complete eligible directory. Ideal if you changed phones or need a full address book restore.
-                  </p>
-                </div>
-
-                <Button
-                  variant="outline"
-                  isLoading={isDownloading}
-                  onClick={() => handleQuickDownload('full')}
-                  className="w-full"
-                  icon={<Layers className="w-4 h-4" />}
-                >
-                  Download Full Cohort (.vcf)
-                </Button>
-              </div>
-            </div>
-
-            {/* Status notice */}
-            <div className="mt-4">
-              <WhatsAppStatusNotice />
+              <Button
+                size="sm"
+                variant="outline"
+                isLoading={isDownloading}
+                onClick={() => handleQuickDownload('full')}
+                icon={<DownloadCloud className="w-4 h-4" />}
+              >
+                Download all (.vcf)
+              </Button>
             </div>
           </div>
 
-          {/* Release History Preview */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-900">Recent Releases</h3>
-              <button
-                onClick={() => setMemberScreen('downloads')}
-                className="text-xs text-teal-700 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <span>View All In Download Centre</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="divide-y divide-slate-100">
-              {releases.slice(0, 3).map(r => (
-                <div key={r.id} className="py-3 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-semibold text-slate-800 block">{r.releaseTitle}</span>
-                    <span className="text-slate-400 text-[11px]">
-                      Published {new Date(r.publishedAt).toLocaleDateString()} · {r.incrementalNewContacts} incremental contacts
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="neutral">{(r.fileSizeBytes / 1024).toFixed(1)} KB</Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="pt-2 text-right">
+            <button
+              onClick={() => setMemberScreen('downloads')}
+              className="text-xs font-semibold text-[#9D7B43] dark:text-[#C5A15B] hover:underline inline-flex items-center gap-1 cursor-pointer"
+            >
+              <span>View download history &amp; device setup instructions</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
-        {/* Right Column (1 Col): Next Release + Referral Widget + Help */}
-        <div className="space-y-6">
-          {/* Next Release Countdown */}
-          <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xs space-y-4">
-            <div className="flex items-center gap-2 text-teal-400 text-xs font-semibold">
-              <Calendar className="w-4 h-4" />
-              <span>{t('dashNextRelease')}</span>
-            </div>
-            <h3 className="text-xl font-bold">
-              Release #05 Coming Friday
-            </h3>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Every Friday at 18:00 UTC, newly verified voluntary members are bundled into the incremental distribution file.
+        {/* Invite Link Card */}
+        <div className="rounded-2xl border p-6 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs space-y-4">
+          <div>
+            <h2 className="text-base font-bold text-[#1C1915] dark:text-[#F5F0E6]">
+              {t('dashReferralCardTitle')}
+            </h2>
+            <p className="text-xs text-[#6B6357] dark:text-[#A8A196] mt-0.5">
+              Share your link with colleagues and creators who want to join.
             </p>
-            <div className="p-3 rounded-xl bg-slate-800 border border-slate-700 text-xs flex items-center justify-between">
-              <span className="text-slate-400">Scheduled Time:</span>
-              <span className="font-mono text-teal-300 font-semibold">Friday 18:00 UTC</span>
-            </div>
           </div>
 
-          {/* Personal Referral Link Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-3">
-            <h3 className="text-sm font-bold text-slate-900">
-              {t('dashReferralCardTitle')}
-            </h3>
-            <p className="text-xs text-slate-500">
-              Share your link with fellow creators and businesses. In Phase 2, successful referrals unlock higher download allowances.
-            </p>
+          <div className="p-4 rounded-xl border border-[#E5DFD5] dark:border-[#2B261F] bg-[#F6F2EA]/70 dark:bg-[#1D1A15] space-y-3">
+            <div className="flex items-center justify-between text-xs text-[#6B6357] dark:text-[#A8A196]">
+              <span>Your personal invite link</span>
+              <span className="font-mono font-semibold text-[#9D7B43] dark:text-[#C5A15B]">
+                Code: {activeMember.referralCode}
+              </span>
+            </div>
 
-            <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-700 truncate">
-              <span className="truncate flex-1">
-                globalsphere.community/join?ref={activeMember.referralCode}
+            <div className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#15130F] border border-[#E5DFD5] dark:border-[#2B261F] rounded-lg p-2 font-mono text-xs">
+              <span className="truncate flex-1 text-[#1C1915] dark:text-[#F5F0E6]">
+                https://contactgaining.community/join?ref={activeMember.referralCode}
               </span>
               <button
                 onClick={handleCopyReferral}
-                className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded transition-colors cursor-pointer shrink-0"
-                title="Copy referral link"
+                className="px-2.5 py-1 text-xs font-semibold rounded-md bg-[#C5A15B] text-[#0B0A08] hover:bg-[#D4B36D] transition-colors cursor-pointer shrink-0 inline-flex items-center gap-1"
               >
-                {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copied ? 'Copied' : 'Copy'}</span>
               </button>
             </div>
           </div>
 
-          {/* Quick Help Box */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">
-              Need Assistance?
-            </h4>
-            <div className="space-y-2 text-xs">
-              <button
-                onClick={() => setMemberScreen('referrals')}
-                className="w-full text-left py-1 text-slate-600 hover:text-slate-900 flex items-center justify-between cursor-pointer"
-              >
-                <span>How to import .vcf on Android / iPhone</span>
-                <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-              <button
-                onClick={() => setMemberScreen('referrals')}
-                className="w-full text-left py-1 text-slate-600 hover:text-slate-900 flex items-center justify-between cursor-pointer"
-              >
-                <span>Report unsolicited spam / broadcast</span>
-                <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-              <button
-                onClick={() => setMemberScreen('profile')}
-                className="w-full text-left py-1 text-slate-600 hover:text-slate-900 flex items-center justify-between cursor-pointer"
-              >
-                <span>Withdraw consent &amp; remove number</span>
-                <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-            </div>
+          <div className="text-xs text-[#6B6357] dark:text-[#A8A196] space-y-1">
+            <p>• Only people who voluntarily sign up will appear in the directory.</p>
+            <p>• You never receive your own number in download files.</p>
           </div>
         </div>
       </div>
+
+      {/* Status views reminder */}
+      <WhatsAppStatusNotice />
     </div>
   );
 };

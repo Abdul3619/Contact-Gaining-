@@ -8,22 +8,15 @@ import { useApp } from '../../context/AppContext';
 import { mockDataService } from '../../services/mockDataService';
 import { ContactRelease } from '../../types';
 import { Button } from '../common/Button';
-import { Badge } from '../common/Badge';
 import { WhatsAppStatusNotice, ContactPermanenceNotice } from '../common/Disclaimers';
 import {
   DownloadCloud,
-  FileText,
   Smartphone,
   Apple,
   CheckCircle2,
   AlertTriangle,
   RotateCcw,
-  Sparkles,
-  Info,
-  Layers,
-  Calendar,
-  ShieldCheck,
-  ChevronRight,
+  ChevronDown,
 } from 'lucide-react';
 
 export const DownloadCentre: React.FC = () => {
@@ -33,7 +26,7 @@ export const DownloadCentre: React.FC = () => {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [simulateErrorToggle, setSimulateErrorToggle] = useState(false);
-  const [simulateEmptyToggle, setSimulateEmptyToggle] = useState(false);
+  const [showDevOptions, setShowDevOptions] = useState(false);
   const [selectedReleaseId, setSelectedReleaseId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'instructions_android' | 'instructions_ios'>('instructions_android');
 
@@ -43,7 +36,7 @@ export const DownloadCentre: React.FC = () => {
   const handleDownload = (release: ContactRelease, type: 'full' | 'incremental') => {
     setSelectedReleaseId(release.id);
     setDownloadState('loading');
-    setDownloadProgress(20);
+    setDownloadProgress(25);
 
     const interval = setInterval(() => {
       setDownloadProgress(prev => {
@@ -53,7 +46,7 @@ export const DownloadCentre: React.FC = () => {
         }
         return prev + 25;
       });
-    }, 150);
+    }, 120);
 
     setTimeout(() => {
       clearInterval(interval);
@@ -64,14 +57,14 @@ export const DownloadCentre: React.FC = () => {
         setDownloadProgress(100);
         setDownloadState('success');
         addToast(
-          `Export complete: ${release.releaseTitle} (${res.record?.contactCount} demo contacts).`,
+          'Contact file (.vcf) downloaded. Ready to import into your contacts.',
           'success'
         );
       } else {
         setDownloadState('error');
-        setErrorMessage(res.error || 'Simulated download error occurred.');
+        setErrorMessage(res.error || 'Download failed. Please try again.');
       }
-    }, 900);
+    }, 700);
   };
 
   const handleResetState = () => {
@@ -83,356 +76,264 @@ export const DownloadCentre: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs">
+      <div className="rounded-2xl border p-6 sm:p-8 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs text-[#1C1915] dark:text-[#F5F0E6]">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-semibold mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-              <span>Standard RFC 2426 vCard 3.0</span>
+            <div className="text-xs font-semibold uppercase tracking-wider text-[#9D7B43] dark:text-[#C5A15B] mb-1">
+              Standard vCard (.vcf) format
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               {t('dlTitle')}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
+            <p className="text-xs sm:text-sm text-[#6B6357] dark:text-[#A8A196] mt-1 max-w-2xl leading-relaxed">
               {t('dlSubhead')}
             </p>
           </div>
 
-          {/* Test State Controls */}
-          <div className="flex flex-wrap items-center gap-2 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
-            <span className="font-semibold text-slate-700">Test States:</span>
-            <label className="flex items-center gap-1 cursor-pointer">
+          <button
+            onClick={() => setShowDevOptions(!showDevOptions)}
+            className="text-xs text-[#6B6357] dark:text-[#81796D] hover:text-[#1C1915] dark:hover:text-[#F5F0E6] flex items-center gap-1 cursor-pointer self-start md:self-auto"
+          >
+            <span>Preview options</span>
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showDevOptions ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+
+        {/* Collapsible Simulation Controls for Prototype Testing */}
+        {showDevOptions && (
+          <div className="mt-4 pt-4 border-t border-[#E5DFD5] dark:border-[#2B261F] flex flex-wrap items-center gap-4 text-xs text-[#6B6357] dark:text-[#A8A196]">
+            <span className="font-semibold text-[#1C1915] dark:text-[#F5F0E6]">Test scenario:</span>
+            <label className="flex items-center gap-1.5 cursor-pointer">
               <input
                 type="checkbox"
                 checked={simulateErrorToggle}
                 onChange={e => setSimulateErrorToggle(e.target.checked)}
-                className="rounded border-slate-300 text-rose-600"
+                className="rounded text-[#C5A15B] focus:ring-[#C5A15B]"
               />
-              <span>Force Error</span>
+              <span>Simulate connection error</span>
             </label>
-            <span className="text-slate-300">|</span>
-            <label className="flex items-center gap-1 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={simulateEmptyToggle}
-                onChange={e => setSimulateEmptyToggle(e.target.checked)}
-                className="rounded border-slate-300 text-slate-600"
-              />
-              <span>Empty List</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* Interactive Download Feedback States */}
-      {downloadState === 'loading' && (
-        <div className="bg-white rounded-2xl border border-teal-200 p-6 shadow-md text-center space-y-4 animate-in fade-in duration-150">
-          <div className="w-12 h-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center mx-auto">
-            <DownloadCloud className="w-6 h-6 animate-pulse" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              Generating Contact Archive...
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Building sanitized vCard 3.0 records for {currentRelease.releaseTitle}
-            </p>
-          </div>
-          <div className="max-w-md mx-auto w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-            <div
-              className="bg-teal-600 h-2.5 transition-all duration-200"
-              style={{ width: `${downloadProgress}%` }}
-            />
-          </div>
-          <span className="text-xs font-mono text-slate-400">{downloadProgress}% completed</span>
-        </div>
-      )}
-
-      {downloadState === 'error' && (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 text-rose-950 space-y-3">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-6 h-6 text-rose-600 shrink-0" />
-            <div>
-              <h3 className="text-sm font-bold">Download Error Simulated</h3>
-              <p className="text-xs text-rose-800 mt-0.5">{errorMessage}</p>
-            </div>
-          </div>
-          <div className="pt-2 flex items-center gap-3">
-            <Button size="sm" variant="danger" onClick={handleResetState}>
-              Dismiss &amp; Retry
-            </Button>
-            <span className="text-[11px] text-rose-700">
-              Tip: Uncheck "Force Error" in test controls to test successful completion.
-            </span>
-          </div>
-        </div>
-      )}
-
-      {downloadState === 'success' && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-emerald-950 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
-              <div>
-                <h3 className="text-sm font-bold">{t('dlSuccessToast')}</h3>
-                <p className="text-xs text-emerald-800 mt-0.5">
-                  Safe demonstration .vcf file was dispatched to your browser downloads.
-                </p>
-              </div>
-            </div>
-            <Button size="sm" variant="outline" onClick={handleResetState}>
-              Done
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Simulated Empty State */}
-      {simulateEmptyToggle ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3">
-          <FileText className="w-12 h-12 text-slate-300 mx-auto" />
-          <h3 className="text-base font-bold text-slate-700">No Releases Currently Available</h3>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            All contacts in your queue have already been exported, or the next weekly release has not yet been finalized.
-          </p>
-          <Button size="sm" variant="secondary" onClick={() => setSimulateEmptyToggle(false)}>
-            Clear Empty Filter
-          </Button>
-        </div>
-      ) : (
-        /* Primary Download Action Cards */
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Latest Incremental Download */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded">
-                  Recommended Cadence
-                </span>
-                <span className="text-xs font-mono text-slate-500">
-                  {(currentRelease.fileSizeBytes / 1024).toFixed(1)} KB
-                </span>
-              </div>
-
-              <h2 className="text-lg font-bold text-slate-900 mb-1">
-                Download Incremental Contacts
-              </h2>
-              <p className="text-xs text-slate-600 leading-relaxed mb-4">
-                Contains only the <strong>{currentRelease.incrementalNewContacts} new participants</strong> added in {currentRelease.releaseTitle}. Importing this file will avoid duplicate contact entries in your phone.
-              </p>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs font-mono text-slate-600 space-y-1 mb-6">
-                <div className="flex justify-between">
-                  <span>Release Batch:</span>
-                  <span className="font-semibold text-slate-900">#{currentRelease.releaseNumber}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Published:</span>
-                  <span>{new Date(currentRelease.publishedAt).toLocaleDateString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Checksum:</span>
-                  <span className="text-[10px] text-slate-400">{currentRelease.hashChecksum}</span>
-                </div>
-              </div>
-            </div>
-
-            <Button
-              variant="emerald"
-              size="lg"
-              className="w-full"
-              isLoading={downloadState === 'loading'}
-              onClick={() => handleDownload(currentRelease, 'incremental')}
-              icon={<DownloadCloud className="w-5 h-5" />}
+            <button
+              onClick={handleResetState}
+              className="text-xs text-[#9D7B43] dark:text-[#C5A15B] hover:underline"
             >
-              {t('dlIncrementalBtn')}
-            </Button>
-          </div>
-
-          {/* Full List Archive Download */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                  Archive Restore
-                </span>
-                <span className="text-xs font-mono text-slate-500">
-                  {((currentRelease.totalEligibleContacts * 1250) / 1024).toFixed(1)} KB
-                </span>
-              </div>
-
-              <h2 className="text-lg font-bold text-slate-900 mb-1">
-                Download Full Eligible Cohort
-              </h2>
-              <p className="text-xs text-slate-600 leading-relaxed mb-4">
-                Exports all <strong>{currentRelease.totalEligibleContacts} verified opt-in members</strong> currently in the directory. Use this if you are a brand new member or setting up a replacement phone.
-              </p>
-
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs font-mono text-slate-600 space-y-1 mb-6">
-                <div className="flex justify-between">
-                  <span>Scope:</span>
-                  <span className="font-semibold text-slate-900">Worldwide (All Regions)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Deduplication:</span>
-                  <span className="text-emerald-700 font-semibold">100% Unique E.164</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Demonstration Limit:</span>
-                  <span>48 Sample Cards</span>
-                </div>
-              </div>
-            </div>
-
-            <Button
-              variant="outline"
-              size="lg"
-              className="w-full"
-              isLoading={downloadState === 'loading'}
-              onClick={() => handleDownload(currentRelease, 'full')}
-              icon={<Layers className="w-5 h-5" />}
-            >
-              {t('dlFullBtn')}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Disclaimers Strip */}
-      <WhatsAppStatusNotice />
-
-      {/* Step-by-Step VCF Import Instructions */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs">
-        <h3 className="text-base font-bold text-slate-900 mb-4">
-          How to Import .VCF Contact Files into Your Phone
-        </h3>
-
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl max-w-sm mb-6">
-          <button
-            type="button"
-            onClick={() => setActiveTab('instructions_android')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-              activeTab === 'instructions_android' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Smartphone className="w-4 h-4 text-emerald-600" />
-            <span>Android (Samsung / Tecno / Pixel)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('instructions_ios')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-              activeTab === 'instructions_ios' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Apple className="w-4 h-4 text-slate-900" />
-            <span>iPhone (iOS)</span>
-          </button>
-        </div>
-
-        {activeTab === 'instructions_android' ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs mb-2">1</span>
-              <strong className="block text-slate-900 font-semibold mb-1">Open Downloaded File</strong>
-              <p className="text-slate-600 leading-relaxed">
-                Swipe down to open notification drawer or open Chrome "Downloads", then tap the downloaded <code>.vcf</code> file.
-              </p>
-            </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs mb-2">2</span>
-              <strong className="block text-slate-900 font-semibold mb-1">Select Contacts App</strong>
-              <p className="text-slate-600 leading-relaxed">
-                When prompted, select <strong>Contacts</strong> or <strong>Google Contacts</strong>. Choose your Google account as the save destination.
-              </p>
-            </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs mb-2">3</span>
-              <strong className="block text-slate-900 font-semibold mb-1">Refresh WhatsApp</strong>
-              <p className="text-slate-600 leading-relaxed">
-                Open WhatsApp, tap the new chat icon (speech bubble at bottom right), tap the 3 dots at top right, and choose <strong>Refresh</strong>.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs mb-2">1</span>
-              <strong className="block text-slate-900 font-semibold mb-1">Open in Safari or Files</strong>
-              <p className="text-slate-600 leading-relaxed">
-                Once downloaded in Safari, tap the download arrow in the address bar and select the <code>.vcf</code> contact card package.
-              </p>
-            </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs mb-2">2</span>
-              <strong className="block text-slate-900 font-semibold mb-1">Tap "Add All Contacts"</strong>
-              <p className="text-slate-600 leading-relaxed">
-                iOS will show the contact bundle preview. Tap <strong>Add All [X] Contacts</strong> at the top of the screen to save them to iCloud/iPhone.
-              </p>
-            </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs mb-2">3</span>
-              <strong className="block text-slate-900 font-semibold mb-1">Sync With WhatsApp</strong>
-              <p className="text-slate-600 leading-relaxed">
-                Open WhatsApp &gt; Chats &gt; New Chat. iOS automatically indexes the new contacts within seconds.
-              </p>
-            </div>
+              Reset download state
+            </button>
           </div>
         )}
       </div>
 
-      {/* Historical Release Archive Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-        <h3 className="text-base font-bold text-slate-900 mb-4">
-          All Published Release Batches
-        </h3>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
-            <thead>
-              <tr className="border-b border-slate-200 text-slate-400 font-semibold uppercase tracking-wider">
-                <th className="py-3 px-3">Batch</th>
-                <th className="py-3 px-3">Release Title</th>
-                <th className="py-3 px-3">Published Date</th>
-                <th className="py-3 px-3 text-right">New Contacts</th>
-                <th className="py-3 px-3 text-right">Total Eligible</th>
-                <th className="py-3 px-3 text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
-              {releases.map(r => (
-                <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-3 px-3 font-mono font-semibold text-slate-900">
-                    #{r.releaseNumber}
-                  </td>
-                  <td className="py-3 px-3">
-                    <span className="font-semibold text-slate-900 block">{r.releaseTitle}</span>
-                    <span className="text-[11px] text-slate-400">{r.descriptionEn}</span>
-                  </td>
-                  <td className="py-3 px-3 font-mono whitespace-nowrap">
-                    {new Date(r.publishedAt).toLocaleDateString()}
-                  </td>
-                  <td className="py-3 px-3 text-right font-mono font-semibold text-teal-700">
-                    +{r.incrementalNewContacts}
-                  </td>
-                  <td className="py-3 px-3 text-right font-mono tabular-nums">
-                    {r.totalEligibleContacts}
-                  </td>
-                  <td className="py-3 px-3 text-center whitespace-nowrap">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleDownload(r, 'incremental')}
-                    >
-                      Export .vcf
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Progress & Error States */}
+      {downloadState === 'loading' && (
+        <div className="rounded-2xl border p-6 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs text-center space-y-3">
+          <h3 className="font-semibold text-sm text-[#1C1915] dark:text-[#F5F0E6]">
+            Preparing your contact file...
+          </h3>
+          <p className="text-xs text-[#6B6357] dark:text-[#A8A196]">
+            Packaging verified member numbers and formatting vCard records.
+          </p>
+          <div className="w-full max-w-md mx-auto bg-[#F0ECE1] dark:bg-[#1D1A15] rounded-full h-2 overflow-hidden">
+            <div
+              className="bg-[#C5A15B] h-2 rounded-full transition-all duration-300"
+              style={{ width: `${downloadProgress}%` }}
+            />
+          </div>
         </div>
+      )}
+
+      {downloadState === 'error' && (
+        <div className="rounded-2xl border p-6 transition-colors bg-[#FDF2F2] dark:bg-[#1A1110] border-rose-200 dark:border-rose-900/60 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-sm text-rose-900 dark:text-rose-200">
+                Unable to complete download
+              </h3>
+              <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5">
+                {errorMessage}
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleResetState}
+            icon={<RotateCcw className="w-3.5 h-3.5" />}
+          >
+            Try again
+          </Button>
+        </div>
+      )}
+
+      {downloadState === 'success' && (
+        <div className="rounded-2xl border p-6 transition-colors bg-[#F2F9F5] dark:bg-[#0E1712] border-emerald-200 dark:border-emerald-900/60 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-sm text-emerald-900 dark:text-emerald-200">
+                Download ready
+              </h3>
+              <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
+                The .vcf file has been generated. Open the file on your device to import contacts.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="gold"
+            onClick={handleResetState}
+          >
+            Done
+          </Button>
+        </div>
+      )}
+
+      {/* Main Download Options */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Newly Added Members */}
+        <div className="rounded-2xl border p-6 sm:p-7 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs flex flex-col justify-between space-y-5">
+          <div>
+            <div className="text-xs font-semibold text-[#9D7B43] dark:text-[#C5A15B] uppercase tracking-wider mb-1">
+              Recommended
+            </div>
+            <h2 className="text-xl font-bold text-[#1C1915] dark:text-[#F5F0E6]">
+              Newly joined members
+            </h2>
+            <p className="text-xs sm:text-sm text-[#6B6357] dark:text-[#A8A196] mt-1 leading-relaxed">
+              Download only members who have joined since the last release. Fast and easy to add without re-importing people you already have.
+            </p>
+
+            <div className="mt-5 p-4 rounded-xl border border-[#E5DFD5] dark:border-[#2B261F] bg-[#F6F2EA]/70 dark:bg-[#1D1A15] space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-[#6B6357] dark:text-[#A8A196]">New contacts in batch:</span>
+                <span className="font-bold font-mono text-[#1C1915] dark:text-[#F5F0E6]">
+                  +{currentRelease?.incrementalNewContacts || 48}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#6B6357] dark:text-[#A8A196]">File format:</span>
+                <span className="font-mono text-[#1C1915] dark:text-[#F5F0E6]">vCard 3.0 (.vcf)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#6B6357] dark:text-[#A8A196]">Self-exclusion:</span>
+                <span className="text-emerald-700 dark:text-emerald-400 font-medium">Your number is excluded</span>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            size="lg"
+            variant="gold"
+            isLoading={downloadState === 'loading' && selectedReleaseId === currentRelease.id}
+            onClick={() => handleDownload(currentRelease, 'incremental')}
+            icon={<DownloadCloud className="w-5 h-5 text-black" />}
+          >
+            {t('dlIncrementalBtn')}
+          </Button>
+        </div>
+
+        {/* Complete Directory */}
+        <div className="rounded-2xl border p-6 sm:p-7 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs flex flex-col justify-between space-y-5">
+          <div>
+            <div className="text-xs font-semibold text-[#6B6357] dark:text-[#A8A196] uppercase tracking-wider mb-1">
+              Full directory
+            </div>
+            <h2 className="text-xl font-bold text-[#1C1915] dark:text-[#F5F0E6]">
+              All active community contacts
+            </h2>
+            <p className="text-xs sm:text-sm text-[#6B6357] dark:text-[#A8A196] mt-1 leading-relaxed">
+              A single archive with all active community members across all countries. Ideal if you are setting up a new phone or importing for the first time.
+            </p>
+
+            <div className="mt-5 p-4 rounded-xl border border-[#E5DFD5] dark:border-[#2B261F] bg-[#F6F2EA]/70 dark:bg-[#1D1A15] space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-[#6B6357] dark:text-[#A8A196]">Total contacts:</span>
+                <span className="font-bold font-mono text-[#1C1915] dark:text-[#F5F0E6]">
+                  {currentRelease?.totalEligibleContacts || 48}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#6B6357] dark:text-[#A8A196]">Deduplication:</span>
+                <span className="text-[#1C1915] dark:text-[#F5F0E6]">Zero duplicate numbers</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#6B6357] dark:text-[#A8A196]">Self-exclusion:</span>
+                <span className="text-emerald-700 dark:text-emerald-400 font-medium">Your number is excluded</span>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            size="lg"
+            variant="outline"
+            isLoading={downloadState === 'loading' && selectedReleaseId === currentRelease.id}
+            onClick={() => handleDownload(currentRelease, 'full')}
+            icon={<DownloadCloud className="w-5 h-5" />}
+          >
+            {t('dlFullBtn')}
+          </Button>
+        </div>
+      </div>
+
+      {/* Device Import Guide */}
+      <div className="rounded-2xl border p-6 sm:p-7 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs space-y-4">
+        <div>
+          <h2 className="text-lg font-bold text-[#1C1915] dark:text-[#F5F0E6]">
+            How to import contacts on your phone
+          </h2>
+          <p className="text-xs text-[#6B6357] dark:text-[#A8A196] mt-0.5">
+            Follow these simple steps after downloading the .vcf file.
+          </p>
+        </div>
+
+        {/* Tab Controls */}
+        <div className="flex items-center gap-2 border-b border-[#E5DFD5] dark:border-[#2B261F] pb-2 text-xs font-semibold">
+          <button
+            onClick={() => setActiveTab('instructions_android')}
+            className={`pb-2 px-3 flex items-center gap-1.5 transition-colors cursor-pointer border-b-2 -mb-2.5 ${
+              activeTab === 'instructions_android'
+                ? 'border-[#9D7B43] dark:border-[#C5A15B] text-[#9D7B43] dark:text-[#C5A15B]'
+                : 'border-transparent text-[#6B6357] dark:text-[#A8A196] hover:text-[#1C1915] dark:hover:text-[#F5F0E6]'
+            }`}
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>Android / Google Contacts</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('instructions_ios')}
+            className={`pb-2 px-3 flex items-center gap-1.5 transition-colors cursor-pointer border-b-2 -mb-2.5 ${
+              activeTab === 'instructions_ios'
+                ? 'border-[#9D7B43] dark:border-[#C5A15B] text-[#9D7B43] dark:text-[#C5A15B]'
+                : 'border-transparent text-[#6B6357] dark:text-[#A8A196] hover:text-[#1C1915] dark:hover:text-[#F5F0E6]'
+            }`}
+          >
+            <Apple className="w-4 h-4" />
+            <span>iPhone / Apple Contacts</span>
+          </button>
+        </div>
+
+        <div className="p-4 rounded-xl bg-[#F6F2EA]/70 dark:bg-[#1D1A15] border border-[#E5DFD5] dark:border-[#2B261F] text-xs sm:text-sm text-[#1C1915] dark:text-[#F5F0E6] leading-relaxed">
+          {activeTab === 'instructions_android' ? (
+            <div className="space-y-2">
+              <p><strong>Step 1:</strong> Tap the downloaded file in your browser or Downloads folder.</p>
+              <p><strong>Step 2:</strong> Choose to open with &quot;Contacts&quot; or &quot;Google Contacts&quot;.</p>
+              <p><strong>Step 3:</strong> Select your Google account to save the contacts.</p>
+              <p><strong>Step 4:</strong> Open WhatsApp, start a new chat, and tap the three dots at the top right to select &quot;Refresh&quot;.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p><strong>Step 1:</strong> Open the downloaded file from Safari or the Files app.</p>
+              <p><strong>Step 2:</strong> Tap &quot;Add All Contacts&quot; at the top of the contact preview.</p>
+              <p><strong>Step 3:</strong> Open WhatsApp and pull down on your chat list to refresh your contacts.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Disclaimers & Transparency */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <WhatsAppStatusNotice />
+        <ContactPermanenceNotice />
       </div>
     </div>
   );
