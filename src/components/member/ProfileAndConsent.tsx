@@ -6,7 +6,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { SearchableCountrySelect } from '../common/SearchableCountrySelect';
-import { mockDataService } from '../../services/mockDataService';
 import { Button } from '../common/Button';
 import { Modal } from '../common/Modal';
 import { ContactPermanenceNotice } from '../common/Disclaimers';
@@ -17,7 +16,15 @@ import {
 } from 'lucide-react';
 
 export const ProfileAndConsent: React.FC = () => {
-  const { activeMember, refreshData, t, addToast, setMemberScreen, updateConsentWithSupabase } = useApp();
+  const {
+    activeMember,
+    refreshData,
+    t,
+    addToast,
+    setMemberScreen,
+    updateConsentWithSupabase,
+    updateMemberProfile,
+  } = useApp();
 
   const [displayName, setDisplayName] = useState(activeMember.displayName);
   const [countryCode, setCountryCode] = useState(activeMember.countryCode);
@@ -29,19 +36,27 @@ export const ProfileAndConsent: React.FC = () => {
   const [removalReason, setRemovalReason] = useState('No longer actively networking on WhatsApp');
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!displayName.trim()) {
+      addToast('Please enter a valid display name.', 'error');
+      return;
+    }
+
     setIsSaving(true);
-    setTimeout(() => {
-      mockDataService.updateProfile(activeMember.id, {
-        displayName: displayName.trim(),
-        countryCode,
-        preferredLanguage,
-      });
-      setIsSaving(false);
+    const res = await updateMemberProfile({
+      displayName: displayName.trim(),
+      countryCode,
+      preferredLanguage,
+    });
+    setIsSaving(false);
+
+    if (res.success) {
       refreshData();
       addToast('Profile changes saved successfully.', 'success');
-    }, 400);
+    } else {
+      addToast(`Failed to update profile: ${res.error || 'Unknown error'}`, 'error');
+    }
   };
 
   const handleConfirmRemoval = async () => {

@@ -276,7 +276,7 @@ export const AccountRecoveryScreen: React.FC = () => {
 };
 
 export const VerificationPendingScreen: React.FC = () => {
-  const { setMemberScreen } = useApp();
+  const { setMemberScreen, activeMember } = useApp();
 
   return (
     <div className="max-w-md mx-auto py-8 px-4 text-[#1C1915] dark:text-[#F5F0E6]">
@@ -284,17 +284,46 @@ export const VerificationPendingScreen: React.FC = () => {
         <div className="w-12 h-12 rounded-full bg-[#C5A15B]/15 text-[#9D7B43] dark:text-[#C5A15B] flex items-center justify-center mx-auto">
           <Mail className="w-6 h-6" />
         </div>
-        <h1 className="text-xl font-bold">Email Verification Required</h1>
+        <div className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+          Status: Pending Verification
+        </div>
+        <h1 className="text-xl font-bold">Registration Submitted</h1>
         <p className="text-xs sm:text-sm text-[#6B6357] dark:text-[#A8A196] leading-relaxed">
-          Please check your inbox and tap the verification link to confirm your account and activate contact exchange eligibility.
+          Your voluntary registration for <strong className="text-[#1C1915] dark:text-[#F5F0E6]">{activeMember.displayName || 'your account'}</strong> and contact sharing consent records have been saved.
         </p>
-        <Button
-          variant="gold"
-          onClick={() => setMemberScreen('dashboard')}
-          className="w-full"
-        >
-          Continue to Dashboard
-        </Button>
+        <div className="p-3.5 rounded-xl border bg-[#F6F2EA]/70 dark:bg-[#1D1A15] border-[#E5DFD5] dark:border-[#2B261F] text-xs text-left text-[#6B6357] dark:text-[#A8A196] space-y-1.5">
+          <div className="flex justify-between">
+            <span>Registered WhatsApp:</span>
+            <span className="font-mono font-semibold text-[#1C1915] dark:text-[#F5F0E6]">{activeMember.normalizedE164}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Exchange Consent:</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Active &amp; Recorded</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Directory Status:</span>
+            <span className="text-amber-600 dark:text-amber-400 font-semibold">Under Review (Pending)</span>
+          </div>
+        </div>
+        <p className="text-[11px] text-[#81796D]">
+          Once verified, your contact will be bundled into the next release cohort and full community contact downloading will be active.
+        </p>
+        <div className="pt-2 flex flex-col gap-2">
+          <Button
+            variant="gold"
+            onClick={() => setMemberScreen('dashboard')}
+            className="w-full"
+          >
+            Continue to Member Dashboard
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setMemberScreen('profile')}
+            className="w-full"
+          >
+            Inspect Profile &amp; Consents
+          </Button>
+        </div>
       </div>
     </div>
   );

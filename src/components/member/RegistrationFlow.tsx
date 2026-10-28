@@ -127,7 +127,8 @@ export const RegistrationFlow: React.FC = () => {
 
     if (res.success) {
       refreshData();
-      setMemberScreen('dashboard');
+      addToast('Registration submitted! Your profile is pending verification before contact release inclusion.', 'info');
+      setMemberScreen('verification_pending');
     } else {
       setErrors({ submit: res.error || 'Unable to complete registration. Please check your details.' });
     }

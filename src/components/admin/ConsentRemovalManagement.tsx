@@ -3,20 +3,47 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { mockDataService } from '../../services/mockDataService';
+import { supabaseService } from '../../services/supabaseService';
 import { Badge } from '../common/Badge';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Database, RefreshCw } from 'lucide-react';
+import { Button } from '../common/Button';
 
 export const ConsentRemovalManagement: React.FC = () => {
-  const { allMembers, refreshData, addToast } = useApp();
+  const { allMembers, refreshData, addToast, isBackendConfigured } = useApp();
+  const [liveWithdrawals, setLiveWithdrawals] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const removalRequests = allMembers.filter(
-    m => !m.consent.consentedToExport || m.eligibility === 'withdrawn'
-  );
+  const fetchWithdrawals = async () => {
+    setIsLoading(true);
+    if (isBackendConfigured) {
+      const records = await supabaseService.getConsentWithdrawalRecords();
+      setLiveWithdrawals(records);
+    }
+    setIsLoading(false);
+  };
 
-  const handleReactivate = (memberId: string) => {
+  useEffect(() => {
+    fetchWithdrawals();
+  }, [isBackendConfigured]);
+
+  const removalRequests = (liveWithdrawals.length > 0)
+    ? liveWithdrawals.map(w => ({
+        id: w.memberId,
+        displayName: `Member ${w.memberId.slice(0, 8)}`,
+        normalizedE164: 'Hidden (Withdrawn)',
+        consent: w,
+      }))
+    : allMembers.filter(
+        m => !m.consent.consentedToExport || m.eligibility === 'withdrawn'
+      );
+
+  const handleReactivate = async (memberId: string) => {
+    if (isBackendConfigured) {
+      await supabaseService.recordConsentChange(memberId, true, undefined);
+    }
     mockDataService.toggleMemberEligibility(memberId, 'eligible');
     const idx = allMembers.findIndex(m => m.id === memberId);
     if (idx !== -1) {
@@ -24,6 +51,7 @@ export const ConsentRemovalManagement: React.FC = () => {
       allMembers[idx].consent.revokedAt = undefined;
     }
     refreshData();
+    fetchWithdrawals();
     addToast('Member consent reinstated to eligible status.', 'success');
   };
 

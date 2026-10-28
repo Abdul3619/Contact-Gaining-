@@ -1,11 +1,7 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { mockDataService } from '../../services/mockDataService';
+import { supabaseService } from '../../services/supabaseService';
 import { Member, MemberEligibility } from '../../types';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
@@ -20,16 +16,38 @@ import {
   MoreVertical,
   RotateCcw,
   Sparkles,
+  Database,
+  RefreshCw,
 } from 'lucide-react';
 
 export const MemberManagement: React.FC = () => {
-  const { allMembers, refreshData, addToast } = useApp();
+  const { allMembers, refreshData, addToast, isBackendConfigured } = useApp();
 
+  const [liveMembers, setLiveMembers] = useState<Member[]>([]);
+  const [useSampleData, setUseSampleData] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [eligibilityFilter, setEligibilityFilter] = useState<'all' | MemberEligibility>('all');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
-  const filteredMembers = allMembers.filter(m => {
+  const fetchMembers = async () => {
+    setIsLoading(true);
+    if (isBackendConfigured) {
+      const res = await supabaseService.getAllMembers();
+      if (res.members && res.members.length > 0) {
+        setLiveMembers(res.members);
+      }
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchMembers();
+  }, [isBackendConfigured]);
+
+  const activeMemberList = (!useSampleData && liveMembers.length > 0) ? liveMembers : allMembers;
+
+  const filteredMembers = activeMemberList.filter(m => {
     const q = query.toLowerCase().trim();
     const matchesQuery =
       !q ||
@@ -42,9 +60,21 @@ export const MemberManagement: React.FC = () => {
     return matchesQuery && matchesFilter;
   });
 
-  const handleStatusChange = (member: Member, newStatus: MemberEligibility) => {
+  const handleStatusChange = async (member: Member, newStatus: MemberEligibility) => {
+    // Map to DB status
+    const dbStatus: 'pending' | 'active' | 'suspended' =
+      newStatus === 'eligible' ? 'active' : newStatus === 'suspended' ? 'suspended' : 'pending';
+
+    if (isBackendConfigured && !member.isSampleRecord) {
+      const res = await supabaseService.updateMemberStatus(member.id, dbStatus);
+      if (!res.success) {
+        addToast(`Database update: ${res.error}. Setting in local session.`, 'warning');
+      }
+    }
+
     mockDataService.toggleMemberEligibility(member.id, newStatus);
     refreshData();
+    fetchMembers();
     if (selectedMember && selectedMember.id === member.id) {
       setSelectedMember({ ...selectedMember, eligibility: newStatus });
     }
@@ -63,7 +93,27 @@ export const MemberManagement: React.FC = () => {
             Search, inspect consent records, and toggle eligibility status across voluntary community participants.
           </p>
         </div>
-        <Badge variant="gold">Demonstration Directory</Badge>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={fetchMembers}
+            disabled={isLoading}
+            icon={<RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />}
+          >
+            Refresh
+          </Button>
+          <Button
+            size="sm"
+            variant={useSampleData ? 'gold' : 'outline'}
+            onClick={() => setUseSampleData(prev => !prev)}
+          >
+            {useSampleData ? 'Switch to Live Database' : 'View Sample Members'}
+          </Button>
+          <Badge variant={liveMembers.length > 0 && !useSampleData ? 'gold' : 'neutral'}>
+            {liveMembers.length > 0 && !useSampleData ? `Live DB (${liveMembers.length})` : 'Sample Directory'}
+          </Badge>
+        </div>
       </div>
 
       {/* Filter Toolbar */}

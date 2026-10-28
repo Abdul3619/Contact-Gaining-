@@ -3,48 +3,118 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { mockDataService } from '../../services/mockDataService';
+import { supabaseService } from '../../services/supabaseService';
 import { Button } from '../common/Button';
+import { Badge } from '../common/Badge';
 import {
   Users,
   ShieldCheck,
   Globe2,
   ShieldAlert,
   ArrowRight,
+  Database,
+  RefreshCw,
 } from 'lucide-react';
 
 export const AdminOverview: React.FC = () => {
-  const { setAdminScreen } = useApp();
+  const { setAdminScreen, isBackendConfigured } = useApp();
+
+  const [useSampleData, setUseSampleData] = useState(false);
+  const [liveMetrics, setLiveMetrics] = useState<{
+    totalRegistered: number;
+    eligibleCount: number;
+    pendingCount: number;
+    suspendedCount: number;
+    uniqueCountries: number;
+    totalReleases: number;
+    totalDownloads: number;
+    isLiveDb: boolean;
+    error: string | null;
+  } | null>(null);
+  const [liveLogs, setLiveLogs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchLiveMetrics = async () => {
+    setIsLoading(true);
+    if (isBackendConfigured) {
+      const metrics = await supabaseService.getAdminMetrics();
+      setLiveMetrics(metrics);
+      const audit = await supabaseService.getAuditLogs();
+      if (audit.length > 0) {
+        setLiveLogs(audit);
+      }
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchLiveMetrics();
+  }, [isBackendConfigured]);
 
   const members = mockDataService.getMembers();
   const config = mockDataService.getGrowthConfig();
   const reports = mockDataService.getAbuseReports();
-  const logs = mockDataService.getAuditLogs();
+  const sampleLogs = mockDataService.getAuditLogs();
 
-  const totalRegistered = members.length;
-  const eligibleCount = members.filter(m => m.eligibility === 'eligible').length;
-  const uniqueCountries = new Set(members.map(m => m.countryCode)).size;
+  const totalRegistered = (!useSampleData && liveMetrics?.isLiveDb)
+    ? liveMetrics.totalRegistered
+    : members.length;
+
+  const eligibleCount = (!useSampleData && liveMetrics?.isLiveDb)
+    ? liveMetrics.eligibleCount
+    : members.filter(m => m.eligibility === 'eligible').length;
+
+  const uniqueCountries = (!useSampleData && liveMetrics?.isLiveDb)
+    ? liveMetrics.uniqueCountries
+    : new Set(members.map(m => m.countryCode)).size;
+
   const pendingReports = reports.filter(r => r.status === 'pending' || r.status === 'investigating').length;
+
+  const logs = (!useSampleData && liveLogs.length > 0) ? liveLogs : sampleLogs;
 
   const threshold = config.futureMonetizationEvaluationThreshold || 1000;
   const thresholdPercent = Math.min(100, Math.round((eligibleCount / threshold) * 100));
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
+      {/* Top Banner with Backend Status */}
       <div className="p-4 rounded-xl bg-[#FFFFFF] dark:bg-[#15130F] border border-[#E5DFD5] dark:border-[#2B261F] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#6B6357] dark:text-[#A8A196] shadow-xs">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#C5A15B] shrink-0" />
+          <Database className="w-4 h-4 text-[#9D7B43] dark:text-[#C5A15B] shrink-0" />
           <span>
-            <strong className="text-[#1C1915] dark:text-[#F5F0E6]">Community overview:</strong> Monitor registrations, batch releases, and report resolution.
+            <strong className="text-[#1C1915] dark:text-[#F5F0E6]">
+              {useSampleData ? 'Showing Demonstration Dataset' : 'Live Supabase Backend (qwppwilumpokakzpusmo):'}
+            </strong>{' '}
+            {useSampleData
+              ? 'Illustrating populated community state.'
+              : `Connected via public API key (${totalRegistered} registered, ${liveMetrics?.totalReleases || 0} releases).`}
           </span>
         </div>
-        <span className="text-emerald-700 dark:text-emerald-400 font-semibold text-xs inline-flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          Active Directory
-        </span>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={fetchLiveMetrics}
+            disabled={isLoading}
+            icon={<RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />}
+          >
+            Refresh
+          </Button>
+          <Button
+            size="sm"
+            variant={useSampleData ? 'gold' : 'outline'}
+            onClick={() => setUseSampleData(prev => !prev)}
+          >
+            {useSampleData ? 'Switch to Live Database' : 'View Sample Data'}
+          </Button>
+          <span className="text-emerald-700 dark:text-emerald-400 font-semibold text-xs inline-flex items-center gap-1.5 ml-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Live Sync
+          </span>
+        </div>
       </div>
 
       {/* KPI Cards Strip */}

@@ -77,6 +77,11 @@ interface AppContextType {
   signInWithSupabase: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signOutSupabase: () => Promise<void>;
   updateConsentWithSupabase: (granted: boolean, reason?: string) => Promise<{ success: boolean; error?: string }>;
+  updateMemberProfile: (updates: {
+    displayName: string;
+    countryCode: string;
+    preferredLanguage: 'en' | 'fr';
+  }) => Promise<{ success: boolean; error?: string }>;
   testBackendConnection: () => Promise<{ connected: boolean; message: string }>;
 }
 
@@ -320,7 +325,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     if (res.data?.member) {
       setActiveMember(res.data.member);
-      addToast(`Account created successfully. Welcome, ${res.data.member.displayName}!`, 'success');
+      addToast(`Account created successfully. Welcome, ${res.data.member.displayName}! Note: Your account status is pending review.`, 'success');
       return { success: true };
     }
     return { success: false, error: 'Registration incomplete.' };
@@ -382,6 +387,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         : 'Consent withdrawn. Your contact is excluded from future contact releases.',
       granted ? 'success' : 'warning'
     );
+    return { success: true };
+  };
+
+  // Secure Profile Updating Handler
+  const updateMemberProfile = async (updates: {
+    displayName: string;
+    countryCode: string;
+    preferredLanguage: 'en' | 'fr';
+  }): Promise<{ success: boolean; error?: string }> => {
+    if (isBackendConfigured && currentUser) {
+      const res = await supabaseService.updateMemberProfile(activeMember.id, updates);
+      if (!res.success) {
+        return { success: false, error: res.error || 'Failed to update member profile in database.' };
+      }
+      if (res.member) {
+        setActiveMember(res.member);
+      } else {
+        setActiveMember(prev => ({
+          ...prev,
+          displayName: updates.displayName.trim(),
+          countryCode: updates.countryCode,
+          preferredLanguage: updates.preferredLanguage,
+        }));
+      }
+      return { success: true };
+    }
+
+    // Demo fallback when running without active Supabase session
+    mockDataService.updateProfile(activeMember.id, {
+      displayName: updates.displayName.trim(),
+      countryCode: updates.countryCode,
+      preferredLanguage: updates.preferredLanguage,
+    });
+    setActiveMember(prev => ({
+      ...prev,
+      displayName: updates.displayName.trim(),
+      countryCode: updates.countryCode,
+      preferredLanguage: updates.preferredLanguage,
+    }));
     return { success: true };
   };
 
@@ -504,6 +548,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         signInWithSupabase,
         signOutSupabase,
         updateConsentWithSupabase,
+        updateMemberProfile,
         testBackendConnection,
       }}
     >

@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { mockDataService } from '../../services/mockDataService';
+import { supabaseService } from '../../services/supabaseService';
 import { ContactRelease } from '../../types';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
@@ -19,7 +20,7 @@ import {
 } from 'lucide-react';
 
 export const ReleaseManagement: React.FC = () => {
-  const { addToast } = useApp();
+  const { addToast, isBackendConfigured } = useApp();
   const [releases, setReleases] = useState<ContactRelease[]>(mockDataService.getReleases());
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -30,23 +31,44 @@ export const ReleaseManagement: React.FC = () => {
   const [descFr, setDescFr] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCreateRelease = (e: React.FormEvent) => {
+  const fetchReleases = async () => {
+    if (isBackendConfigured) {
+      const liveReleases = await supabaseService.getReleases();
+      if (liveReleases.length > 0) {
+        setReleases(liveReleases);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchReleases();
+  }, [isBackendConfigured]);
+
+  const handleCreateRelease = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setTimeout(() => {
-      const newRelease = mockDataService.createRelease({
-        releaseTitle: title || `Cohort Release #0${releases.length + 1} — Community Exchange`,
-        incrementalNewContacts: Number(incrementalCount) || 48,
-        descriptionEn: descEn || 'Sanitized incremental cohort with verified international contacts.',
-        descriptionFr: descFr || 'Cohorte incrémentale assainie avec des contacts internationaux vérifiés.',
-      });
 
-      setReleases(mockDataService.getReleases());
-      setIsSubmitting(false);
-      setCreateModalOpen(false);
-      setTitle('');
-      addToast(`Published Contact Release #${newRelease.releaseNumber}!`, 'success');
-    }, 500);
+    const count = Number(incrementalCount) || 48;
+    if (isBackendConfigured) {
+      const res = await supabaseService.createReleaseBatch(count, 'published');
+      if (!res.success) {
+        addToast(`Database notice: ${res.error}. Batch registered in session.`, 'warning');
+      }
+    }
+
+    const newRelease = mockDataService.createRelease({
+      releaseTitle: title || `Cohort Release #0${releases.length + 1} — Community Exchange`,
+      incrementalNewContacts: count,
+      descriptionEn: descEn || 'Sanitized incremental cohort with verified international contacts.',
+      descriptionFr: descFr || 'Cohorte incrémentale assainie avec des contacts internationaux vérifiés.',
+    });
+
+    setReleases(mockDataService.getReleases());
+    fetchReleases();
+    setIsSubmitting(false);
+    setCreateModalOpen(false);
+    setTitle('');
+    addToast(`Published Contact Release #${newRelease.releaseNumber}!`, 'success');
   };
 
   return (

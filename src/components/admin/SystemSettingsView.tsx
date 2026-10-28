@@ -3,48 +3,92 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { mockDataService } from '../../services/mockDataService';
+import { supabaseService } from '../../services/supabaseService';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
-import { Settings, Save, ShieldCheck, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Settings, Save, ShieldCheck, CheckCircle2, RotateCcw, Database } from 'lucide-react';
 
 export const SystemSettingsView: React.FC = () => {
-  const { addToast, resetDemonstrationData } = useApp();
-  const settings = mockDataService.getSystemSettings();
+  const { addToast, resetDemonstrationData, isBackendConfigured } = useApp();
+  const initialSettings = mockDataService.getSystemSettings();
 
-  const [pilotMode, setPilotMode] = useState(settings.growthPhaseActive);
-  const [registrationOpen, setRegistrationOpen] = useState(settings.registrationOpen);
-  const [requireDoubleOptIn, setRequireDoubleOptIn] = useState(settings.requireDoubleOptInConsent);
-  const [e164Strict, setE164Strict] = useState(settings.e164ValidationStrict);
-  const [communityLink, setCommunityLink] = useState(settings.communityInviteLink);
+  const [pilotMode, setPilotMode] = useState(initialSettings.growthPhaseActive);
+  const [registrationOpen, setRegistrationOpen] = useState(initialSettings.registrationOpen);
+  const [requireDoubleOptIn, setRequireDoubleOptIn] = useState(initialSettings.requireDoubleOptInConsent);
+  const [e164Strict, setE164Strict] = useState(initialSettings.e164ValidationStrict);
+  const [communityLink, setCommunityLink] = useState(initialSettings.communityInviteLink);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDbSynced, setIsDbSynced] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (isBackendConfigured) {
+      supabaseService.getSystemSettings().then(({ settings, isFromDb }) => {
+        setIsDbSynced(isFromDb);
+        setPilotMode(settings.growthPhaseActive);
+        setRegistrationOpen(settings.registrationOpen);
+        setRequireDoubleOptIn(settings.requireDoubleOptInConsent);
+        setE164Strict(settings.e164ValidationStrict);
+        setCommunityLink(settings.communityInviteLink);
+      });
+    }
+  }, [isBackendConfigured]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    setTimeout(() => {
-      mockDataService.updateSystemSettings({
-        growthPhaseActive: pilotMode,
-        registrationOpen,
-        requireDoubleOptInConsent: requireDoubleOptIn,
-        e164ValidationStrict: e164Strict,
-        communityInviteLink: communityLink,
-      });
+
+    const payload = {
+      growthPhaseActive: pilotMode,
+      registrationOpen,
+      requireDoubleOptInConsent: requireDoubleOptIn,
+      e164ValidationStrict: e164Strict,
+      communityInviteLink: communityLink,
+      disclaimerEnforced: true,
+      founderPortfolioUrl: 'https://github.com/Abdul3619/Contact-Gaining-',
+    };
+
+    // Always update local service for reactive UI state
+    mockDataService.updateSystemSettings(payload);
+
+    if (isBackendConfigured) {
+      const res = await supabaseService.updateSystemSettings(payload);
       setIsSaving(false);
-      addToast('System operational parameters updated successfully.', 'success');
-    }, 400);
+      if (res.success) {
+        setIsDbSynced(true);
+        addToast('System operational parameters persisted to Supabase platform_settings.', 'success');
+      } else {
+        // Transparent explanation if RLS requires elevated admin role
+        addToast(
+          `Database update policy: ${res.error}. Setting changes preserved for current session.`,
+          'info'
+        );
+      }
+    } else {
+      setIsSaving(false);
+      addToast('System operational parameters updated in session.', 'success');
+    }
   };
 
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-[#25221D] dark:text-[#F5F0E6] tracking-tight">
-          Platform System Settings
-        </h1>
-        <p className="text-xs text-[#736C61] dark:text-[#A89F91] mt-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#25221D] dark:text-[#F5F0E6] tracking-tight">
+            Platform System Settings
+          </h1>
+          <div className="flex items-center gap-1.5 text-xs text-[#736C61] dark:text-[#A8A196]">
+            <Database className="w-3.5 h-3.5 text-[#C5A15B]" />
+            <span>Target: <code className="font-mono text-[#9D7B43] dark:text-[#C5A15B]">platform_settings</code></span>
+            <Badge variant={isDbSynced ? 'gold' : 'neutral'}>
+              {isDbSynced ? 'Database Active' : 'Default / Session'}
+            </Badge>
+          </div>
+        </div>
+        <p className="text-xs text-[#736C61] dark:text-[#A89F91]">
           Operational switches, compliance gates, and external channel configuration.
         </p>
       </div>

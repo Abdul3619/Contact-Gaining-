@@ -5,7 +5,8 @@
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { normalizePhoneNumber } from './phoneUtils';
-import { Member, ConsentRecord, ContactRelease, Locale, MemberEligibility } from '../types';
+import { Member, ConsentRecord, ContactRelease, Locale, MemberEligibility, SystemSettings, AuditLogEvent } from '../types';
+import { Json } from '../types/supabase';
 
 export interface AuthResponse<T> {
   data: T | null;
@@ -104,7 +105,7 @@ export class SupabaseService {
       const now = new Date().toISOString();
 
       // 4. Upsert profile in `members` table
-      // Uses permitted status: 'active'
+      // Strictly enforced by live database insert policy: status MUST be 'pending' upon registration
       const { data: memberRow, error: memberError } = await supabase
         .from('members')
         .upsert({
@@ -113,7 +114,7 @@ export class SupabaseService {
           country_code: params.countryCode,
           phone_e164: normalizedE164,
           preferred_language: params.preferredLanguage,
-          status: 'active',
+          status: 'pending',
           updated_at: now,
         })
         .select()
@@ -123,13 +124,12 @@ export class SupabaseService {
         return { data: null, error: `Failed to save member profile: ${memberError.message}` };
       }
 
-      // 5. Insert explicit initial consent record in `consent_records`
-      // Uses verified permitted constraint value: 'contact_distribution'
-      const { data: consentRow, error: consentError } = await supabase
-        .from('consent_records')
-        .insert({
+      // 5. Insert explicit initial consent records in `consent_records`
+      // Verified allowed constraint values: 'contact_distribution' | 'privacy_policy' | 'terms'
+      const consentPayloads = [
+        {
           member_id: user.id,
-          consent_type: 'contact_distribution',
+          consent_type: 'contact_distribution' as const,
           granted: true,
           source: 'registration',
           version: params.termsVersion || '2026.1',
@@ -140,19 +140,47 @@ export class SupabaseService {
             ip_sample: 'client_registration',
             registered_at: now,
           },
-        })
-        .select()
-        .single();
+        },
+        {
+          member_id: user.id,
+          consent_type: 'privacy_policy' as const,
+          granted: true,
+          source: 'registration',
+          version: params.termsVersion || '2026.1',
+          withdrawn_at: null,
+          metadata: {
+            acknowledged_privacy: true,
+            registered_at: now,
+          },
+        },
+        {
+          member_id: user.id,
+          consent_type: 'terms' as const,
+          granted: true,
+          source: 'registration',
+          version: params.termsVersion || '2026.1',
+          withdrawn_at: null,
+          metadata: {
+            acknowledged_terms: true,
+            registered_at: now,
+          },
+        },
+      ];
+
+      const { data: consentRows, error: consentError } = await supabase
+        .from('consent_records')
+        .insert(consentPayloads)
+        .select();
 
       if (consentError) {
-        // Safe handling of failed consent write:
-        // Do not leave member in an ambiguous unconsented state
         console.error('Consent recording error:', consentError);
         return {
           data: null,
           error: `Account created but failed to record contact sharing consent (${consentError.message}). Please contact support or retry sign-in.`,
         };
       }
+
+      const primaryConsent = (consentRows && consentRows.length > 0) ? consentRows[0] : undefined;
 
       // 6. Record audit event
       await this.logAuditEvent('MEMBER_REGISTERED', {
@@ -163,7 +191,7 @@ export class SupabaseService {
         timestamp: now,
       });
 
-      const memberModel = this.mapMemberRow(memberRow, consentRow || undefined);
+      const memberModel = this.mapMemberRow(memberRow, primaryConsent);
       return {
         data: {
           user,
@@ -285,6 +313,58 @@ export class SupabaseService {
     } catch (err) {
       console.error('Error fetching member profile:', err);
       return null;
+    }
+  }
+
+  /**
+   * Updates an authenticated member's profile in the live `members` table.
+   * Strictly restricts modifications to authorized profile fields:
+   * displayName, countryCode, and preferredLanguage.
+   * Does NOT allow clients to modify phone_e164, status, or member id.
+   */
+  async updateMemberProfile(
+    memberId: string,
+    updates: {
+      displayName: string;
+      countryCode: string;
+      preferredLanguage: 'en' | 'fr';
+    }
+  ): Promise<{ success: boolean; member?: Member; error: string | null }> {
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase backend is not configured.' };
+    }
+
+    try {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('members')
+        .update({
+          display_name: updates.displayName.trim(),
+          country_code: updates.countryCode,
+          preferred_language: updates.preferredLanguage,
+          updated_at: now,
+        })
+        .eq('id', memberId)
+        .select()
+        .single();
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      await this.logAuditEvent('PROFILE_UPDATED', {
+        member_id: memberId,
+        display_name: updates.displayName.trim(),
+        country_code: updates.countryCode,
+        preferred_language: updates.preferredLanguage,
+        timestamp: now,
+      });
+
+      const updatedMember = this.mapMemberRow(data);
+      return { success: true, member: updatedMember, error: null };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, error: msg };
     }
   }
 
@@ -725,6 +805,366 @@ export class SupabaseService {
       });
     } catch (err) {
       console.warn('Audit event log notice:', err);
+    }
+  /**
+   * Fetches real admin metrics from live Supabase tables
+   */
+  async getAdminMetrics(): Promise<{
+    totalRegistered: number;
+    eligibleCount: number;
+    pendingCount: number;
+    suspendedCount: number;
+    uniqueCountries: number;
+    totalReleases: number;
+    totalDownloads: number;
+    isLiveDb: boolean;
+    error: string | null;
+  }> {
+    if (!isSupabaseConfigured()) {
+      return {
+        totalRegistered: 0,
+        eligibleCount: 0,
+        pendingCount: 0,
+        suspendedCount: 0,
+        uniqueCountries: 0,
+        totalReleases: 0,
+        totalDownloads: 0,
+        isLiveDb: false,
+        error: 'Supabase backend is not configured.',
+      };
+    }
+
+    try {
+      // 1. Members count and status distribution
+      const { count: totalRegistered, error: memErr } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true });
+
+      const { count: activeCount } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'active');
+
+      const { count: pendingCount } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      const { count: suspendedCount } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'suspended');
+
+      // Unique countries
+      const { data: memberCountries } = await supabase
+        .from('members')
+        .select('country_code');
+      const uniqueCountries = new Set((memberCountries || []).map((m: { country_code: string }) => m.country_code)).size;
+
+      // 2. Active consenting members
+      const { count: consentingCount } = await supabase
+        .from('consent_records')
+        .select('*', { count: 'exact', head: true })
+        .eq('consent_type', 'contact_distribution')
+        .eq('granted', true)
+        .is('withdrawn_at', null);
+
+      // 3. Releases count
+      const { count: totalReleases } = await supabase
+        .from('contact_releases')
+        .select('*', { count: 'exact', head: true });
+
+      // 4. Downloads count
+      const { count: totalDownloads } = await supabase
+        .from('download_logs')
+        .select('*', { count: 'exact', head: true });
+
+      return {
+        totalRegistered: totalRegistered || 0,
+        eligibleCount: Math.min(activeCount || 0, consentingCount || 0),
+        pendingCount: pendingCount || 0,
+        suspendedCount: suspendedCount || 0,
+        uniqueCountries,
+        totalReleases: totalReleases || 0,
+        totalDownloads: totalDownloads || 0,
+        isLiveDb: true,
+        error: memErr ? memErr.message : null,
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return {
+        totalRegistered: 0,
+        eligibleCount: 0,
+        pendingCount: 0,
+        suspendedCount: 0,
+        uniqueCountries: 0,
+        totalReleases: 0,
+        totalDownloads: 0,
+        isLiveDb: false,
+        error: msg,
+      };
+    }
+  }
+
+  /**
+   * Fetches system operational settings from `platform_settings` table
+   */
+  async getSystemSettings(): Promise<{ settings: SystemSettings; isFromDb: boolean; error: string | null }> {
+    const defaultSettings: SystemSettings = {
+      growthPhaseActive: true,
+      registrationOpen: true,
+      requireDoubleOptInConsent: true,
+      e164ValidationStrict: true,
+      disclaimerEnforced: true,
+      communityInviteLink: 'https://chat.whatsapp.com/sample-international-exchange-invite',
+      founderPortfolioUrl: 'https://github.com/Abdul3619/Contact-Gaining-',
+    };
+
+    if (!isSupabaseConfigured()) {
+      return { settings: defaultSettings, isFromDb: false, error: null };
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('platform_settings')
+        .select('*')
+        .eq('key', 'system_settings')
+        .maybeSingle();
+
+      if (error || !data) {
+        return { settings: defaultSettings, isFromDb: false, error: error?.message || null };
+      }
+
+      const val = data.value as unknown as Partial<SystemSettings>;
+      return {
+        settings: {
+          ...defaultSettings,
+          ...val,
+        },
+        isFromDb: true,
+        error: null,
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { settings: defaultSettings, isFromDb: false, error: msg };
+    }
+  }
+
+  /**
+   * Updates platform operational settings in `platform_settings`
+   */
+  async updateSystemSettings(
+    newSettings: Partial<SystemSettings>
+  ): Promise<{ success: boolean; error: string | null }> {
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase is not configured.' };
+    }
+
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('platform_settings')
+        .upsert({
+          key: 'system_settings',
+          value: newSettings as unknown as Json,
+          updated_at: now,
+        });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      await this.logAuditEvent('SETTINGS_UPDATED', {
+        key: 'system_settings',
+        updated_at: now,
+      });
+
+      return { success: true, error: null };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, error: msg };
+    }
+  }
+
+  /**
+   * Fetches all registered members with their latest contact_distribution consent
+   */
+  async getAllMembers(): Promise<{ members: Member[]; error: string | null }> {
+    if (!isSupabaseConfigured()) {
+      return { members: [], error: 'Supabase is not configured.' };
+    }
+
+    try {
+      const { data: memberRows, error } = await supabase
+        .from('members')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error || !memberRows) {
+        return { members: [], error: error ? error.message : 'No members found.' };
+      }
+
+      if (memberRows.length === 0) {
+        return { members: [], error: null };
+      }
+
+      const memberIds = memberRows.map((m: { id: string }) => m.id);
+      const { data: consentRows } = await supabase
+        .from('consent_records')
+        .select('*')
+        .in('member_id', memberIds)
+        .eq('consent_type', 'contact_distribution')
+        .order('id', { ascending: false });
+
+      const consentMap = new Map<string, any>();
+      (consentRows || []).forEach((c: any) => {
+        if (!consentMap.has(c.member_id)) {
+          consentMap.set(c.member_id, c);
+        }
+      });
+
+      const members = memberRows.map((m: any) => this.mapMemberRow(m, consentMap.get(m.id)));
+      return { members, error: null };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { members: [], error: msg };
+    }
+  }
+
+  /**
+   * Modifies member account eligibility status ('pending' | 'active' | 'suspended')
+   */
+  async updateMemberStatus(
+    memberId: string,
+    status: 'pending' | 'active' | 'suspended'
+  ): Promise<{ success: boolean; error: string | null }> {
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase is not configured.' };
+    }
+
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('members')
+        .update({ status, updated_at: now })
+        .eq('id', memberId);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      await this.logAuditEvent('MEMBER_STATUS_CHANGED', {
+        member_id: memberId,
+        new_status: status,
+        updated_at: now,
+      });
+
+      return { success: true, error: null };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, error: msg };
+    }
+  }
+
+  /**
+   * Creates and publishes a new contact release batch in `contact_releases`
+   */
+  async createReleaseBatch(
+    count: number,
+    status: 'published' | 'draft' | 'archived' = 'published'
+  ): Promise<{ success: boolean; releaseId?: string; error: string | null }> {
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase is not configured.' };
+    }
+
+    try {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('contact_releases')
+        .insert({
+          status,
+          count,
+          created_at: now,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      await this.logAuditEvent('RELEASE_PUBLISHED', {
+        release_id: data.id,
+        count,
+        status,
+        timestamp: now,
+      });
+
+      return { success: true, releaseId: data.id, error: null };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, error: msg };
+    }
+  }
+
+  /**
+   * Fetches latest audit log events from `audit_events` table
+   */
+  async getAuditLogs(): Promise<AuditLogEvent[]> {
+    if (!isSupabaseConfigured()) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('audit_events')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error || !data) return [];
+
+      return data.map((d: { id: string; action: string; created_at: string; metadata: any }) => ({
+        id: d.id,
+        timestamp: d.created_at,
+        actor: d.metadata?.user_id ? `User ${String(d.metadata.user_id).slice(0, 8)}` : 'System / Admin',
+        actorRole: (d.action.includes('ADMIN') || d.action.includes('SETTINGS')) ? 'admin' : (d.metadata?.user_id ? 'member' : 'system'),
+        action: d.action,
+        details: JSON.stringify(d.metadata || {}),
+        ipAddressSample: d.metadata?.ip_sample || '127.0.0.1',
+        metadata: d.metadata || undefined,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Fetches all consent withdrawal and removal records
+   */
+  async getConsentWithdrawalRecords(): Promise<ConsentRecord[]> {
+    if (!isSupabaseConfigured()) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('consent_records')
+        .select('*')
+        .or('granted.eq.false,withdrawn_at.not.is.null')
+        .order('id', { ascending: false });
+
+      if (error || !data) return [];
+
+      return data.map((r: any) => ({
+        id: r.id,
+        memberId: r.member_id,
+        timestamp: r.metadata?.timestamp || new Date().toISOString(),
+        consentedToExport: false,
+        acknowledgedNoRemoteWipe: Boolean(r.metadata?.acknowledged_no_remote_wipe ?? true),
+        termsVersion: r.version || '2026.1',
+        ipHashSample: r.metadata?.ip_sample || '',
+        revokedAt: r.withdrawn_at || new Date().toISOString(),
+        revocationReason: r.metadata?.revocation_reason || 'Withdrawn by member',
+      }));
+    } catch {
+      return [];
     }
   }
 
