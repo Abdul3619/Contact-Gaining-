@@ -13,6 +13,9 @@ export type Json =
 
 /**
  * Reconciled Supabase Database Schema matching live database qwppwilumpokakzpusmo
+ * Exact live constraints enforced:
+ * - members.status: 'pending' | 'active' | 'suspended'
+ * - consent_records.consent_type: 'contact_distribution' | 'privacy_policy' | 'terms'
  */
 export interface Database {
   public: {
@@ -24,7 +27,7 @@ export interface Database {
           country_code: string;
           phone_e164: string;
           preferred_language: 'en' | 'fr';
-          status: 'active' | 'withdrawn' | 'suspended';
+          status: 'pending' | 'active' | 'suspended';
           created_at: string;
           updated_at: string;
         };
@@ -34,7 +37,7 @@ export interface Database {
           country_code: string;
           phone_e164: string;
           preferred_language?: 'en' | 'fr';
-          status?: 'active' | 'withdrawn' | 'suspended';
+          status?: 'pending' | 'active' | 'suspended';
           created_at?: string;
           updated_at?: string;
         };
@@ -44,7 +47,7 @@ export interface Database {
           country_code?: string;
           phone_e164?: string;
           preferred_language?: 'en' | 'fr';
-          status?: 'active' | 'withdrawn' | 'suspended';
+          status?: 'pending' | 'active' | 'suspended';
           created_at?: string;
           updated_at?: string;
         };
@@ -54,7 +57,7 @@ export interface Database {
         Row: {
           id: string;
           member_id: string;
-          consent_type: string;
+          consent_type: 'contact_distribution' | 'privacy_policy' | 'terms';
           granted: boolean;
           source: string;
           version: string;
@@ -64,7 +67,7 @@ export interface Database {
         Insert: {
           id?: string;
           member_id: string;
-          consent_type?: string;
+          consent_type?: 'contact_distribution' | 'privacy_policy' | 'terms';
           granted: boolean;
           source?: string;
           version?: string;
@@ -74,7 +77,7 @@ export interface Database {
         Update: {
           id?: string;
           member_id?: string;
-          consent_type?: string;
+          consent_type?: 'contact_distribution' | 'privacy_policy' | 'terms';
           granted?: boolean;
           source?: string;
           version?: string;

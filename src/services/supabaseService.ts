@@ -5,7 +5,7 @@
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { normalizePhoneNumber } from './phoneUtils';
-import { Member, ConsentRecord, ContactRelease, Locale } from '../types';
+import { Member, ConsentRecord, ContactRelease, Locale, MemberEligibility } from '../types';
 
 export interface AuthResponse<T> {
   data: T | null;
@@ -28,9 +28,13 @@ export class SupabaseService {
   /**
    * Registers a new member with Supabase Auth, creates the profile in `members`,
    * and records explicit initial consent in `consent_records`.
-   * Reconciled with live database columns:
-   * - members: id (= user.id), display_name, country_code, phone_e164, preferred_language, status
-   * - consent_records: member_id, consent_type, granted, source, version, withdrawn_at, metadata
+   * 
+   * Reconciled with live database constraints:
+   * - members.status: 'pending' | 'active' | 'suspended' (active upon valid registration)
+   * - consent_records.consent_type: 'contact_distribution' (permitted: 'contact_distribution' | 'privacy_policy' | 'terms')
+   * 
+   * Safe partial failure handling: If profile or consent creation fails, returns an explicit error
+   * and does not leave the user appearing registered with missing permissions.
    */
   async signUp(params: SignUpParams): Promise<AuthResponse<{ user: unknown; member: Member }>> {
     if (!isSupabaseConfigured()) {
@@ -94,12 +98,13 @@ export class SupabaseService {
 
       const user = authData.user;
       if (!user) {
-        return { data: null, error: 'Registration failed: no authentication record returned.' };
+        return { data: null, error: 'Registration failed: no authentication record returned from auth provider.' };
       }
 
       const now = new Date().toISOString();
 
-      // 4. Upsert profile in `members` table (id matches user.id)
+      // 4. Upsert profile in `members` table
+      // Uses permitted status: 'active'
       const { data: memberRow, error: memberError } = await supabase
         .from('members')
         .upsert({
@@ -119,11 +124,12 @@ export class SupabaseService {
       }
 
       // 5. Insert explicit initial consent record in `consent_records`
+      // Uses verified permitted constraint value: 'contact_distribution'
       const { data: consentRow, error: consentError } = await supabase
         .from('consent_records')
         .insert({
           member_id: user.id,
-          consent_type: 'whatsapp_contact_exchange',
+          consent_type: 'contact_distribution',
           granted: true,
           source: 'registration',
           version: params.termsVersion || '2026.1',
@@ -132,13 +138,20 @@ export class SupabaseService {
             acknowledged_no_remote_wipe: true,
             referral_code: params.referralCode || null,
             ip_sample: 'client_registration',
+            registered_at: now,
           },
         })
         .select()
         .single();
 
       if (consentError) {
-        console.warn('Consent record logging notice:', consentError.message);
+        // Safe handling of failed consent write:
+        // Do not leave member in an ambiguous unconsented state
+        console.error('Consent recording error:', consentError);
+        return {
+          data: null,
+          error: `Account created but failed to record contact sharing consent (${consentError.message}). Please contact support or retry sign-in.`,
+        };
       }
 
       // 6. Record audit event
@@ -146,6 +159,7 @@ export class SupabaseService {
         user_id: user.id,
         phone_e164: normalizedE164,
         email: user.email,
+        consent_recorded: true,
         timestamp: now,
       });
 
@@ -243,7 +257,7 @@ export class SupabaseService {
   }
 
   /**
-   * Fetches member record by Supabase user id with latest consent record
+   * Fetches member record by Supabase user id with latest contact_distribution consent record
    */
   async getMemberByUserId(userId: string): Promise<Member | null> {
     if (!isSupabaseConfigured()) return null;
@@ -257,11 +271,12 @@ export class SupabaseService {
 
       if (error || !memberRow) return null;
 
-      // Fetch latest consent record
+      // Fetch latest consent record for contact_distribution
       const { data: consentRows } = await supabase
         .from('consent_records')
         .select('*')
         .eq('member_id', memberRow.id)
+        .eq('consent_type', 'contact_distribution')
         .order('id', { ascending: false })
         .limit(1);
 
@@ -275,8 +290,10 @@ export class SupabaseService {
 
   /**
    * Explicit Consent Management:
-   * Records a new consent decision without overwriting historical records.
-   * Updates member status accordingly in the live database.
+   * Records a new consent decision in `consent_records` without overwriting historical records.
+   * Uses verified constraint value: `consent_type: 'contact_distribution'`.
+   * Does NOT write invalid statuses to `members.status` ('withdrawn' is not a DB status; 'pending' | 'active' | 'suspended' are).
+   * Consent state is accurately modeled via `consent_records.withdrawn_at` and `consent_records.granted`.
    */
   async recordConsentChange(
     memberId: string,
@@ -296,7 +313,7 @@ export class SupabaseService {
         .from('consent_records')
         .insert({
           member_id: memberId,
-          consent_type: 'whatsapp_contact_exchange',
+          consent_type: 'contact_distribution',
           granted,
           source: 'member_portal',
           version: termsVersion,
@@ -312,23 +329,16 @@ export class SupabaseService {
         return { success: false, error: consentErr.message };
       }
 
-      // 2. Update status in live members table
-      const newStatus = granted ? 'active' : 'withdrawn';
-      const { error: memberErr } = await supabase
+      // 2. Touch members.updated_at without writing unsupported enum values
+      await supabase
         .from('members')
-        .update({
-          status: newStatus,
-          updated_at: now,
-        })
+        .update({ updated_at: now })
         .eq('id', memberId);
-
-      if (memberErr) {
-        return { success: false, error: memberErr.message };
-      }
 
       // 3. Log audit event
       await this.logAuditEvent(granted ? 'CONSENT_GRANTED' : 'CONSENT_WITHDRAWN', {
         member_id: memberId,
+        consent_type: 'contact_distribution',
         granted,
         reason: revocationReason || null,
         timestamp: now,
@@ -369,7 +379,7 @@ export class SupabaseService {
         id: r.id,
         memberId: r.member_id,
         timestamp: (r.metadata?.timestamp as string) || new Date().toISOString(),
-        consentedToExport: r.granted,
+        consentedToExport: r.granted && !r.withdrawn_at,
         acknowledgedNoRemoteWipe: Boolean(r.metadata?.acknowledged_no_remote_wipe ?? true),
         termsVersion: r.version || '2026.1',
         ipHashSample: (r.metadata?.ip_sample as string) || '',
@@ -383,12 +393,14 @@ export class SupabaseService {
 
   /**
    * Real Allocation Engine:
-   * Reconciled with live database column: `contact_member_id`
-   * Rules enforced:
-   * - Recipient must have status = 'active'.
-   * - Never allocate recipient their own contact.
-   * - Never duplicate existing allocations.
-   * - Allocated contacts must have active consent at allocation time.
+   * 
+   * Strict security and business rules enforced:
+   * 1. Recipient must have DB status = 'active'.
+   * 2. Recipient must have active unwithdrawn consent for 'contact_distribution'.
+   * 3. Never allocate recipient their own contact (id != recipientId, phone != recipientPhone).
+   * 4. Never duplicate existing allocations in contact_allocations.
+   * 5. Candidate contacts must have DB status = 'active' and unwithdrawn consent for 'contact_distribution'.
+   * 6. Withdrawn or suspended members are strictly excluded.
    */
   async allocateContactsForMember(
     recipientMemberId: string,
@@ -399,7 +411,7 @@ export class SupabaseService {
     }
 
     try {
-      // 1. Verify recipient's own status
+      // 1. Verify recipient's own profile and status in DB
       const { data: recipient, error: recError } = await supabase
         .from('members')
         .select('id, status, phone_e164')
@@ -414,11 +426,29 @@ export class SupabaseService {
         return {
           allocatedCount: 0,
           contacts: [],
-          error: `Your account is currently not active for contact allocations (status: ${recipient.status}). Please verify your consent in profile settings.`,
+          error: `Your account is not active (status: ${recipient.status}). Only active members can receive contact allocations.`,
         };
       }
 
-      // 2. Fetch existing allocated contact IDs for this recipient
+      // 2. Verify recipient's own consent status: must have active, unwithdrawn contact_distribution consent
+      const { data: recConsent } = await supabase
+        .from('consent_records')
+        .select('granted, withdrawn_at')
+        .eq('member_id', recipientMemberId)
+        .eq('consent_type', 'contact_distribution')
+        .order('id', { ascending: false })
+        .limit(1);
+
+      const recipientConsenting = recConsent && recConsent.length > 0 && recConsent[0].granted && !recConsent[0].withdrawn_at;
+      if (!recipientConsenting) {
+        return {
+          allocatedCount: 0,
+          contacts: [],
+          error: 'You have withdrawn your contact sharing consent. To receive contacts from the community, please reinstate sharing in your profile.',
+        };
+      }
+
+      // 3. Fetch existing allocated contact IDs for this recipient to prevent duplicate allocations
       const { data: existingAllocations, error: allocError } = await supabase
         .from('contact_allocations')
         .select('contact_member_id')
@@ -433,56 +463,71 @@ export class SupabaseService {
       );
       existingIds.add(recipientMemberId); // Never allocate self
 
-      // 3. Query candidate members who have status = 'active'
+      // 4. Query candidate members who have status = 'active'
       const { data: candidates, error: candError } = await supabase
         .from('members')
         .select('id, display_name, country_code, phone_e164, preferred_language, status, created_at, updated_at')
         .eq('status', 'active')
         .neq('id', recipientMemberId)
+        .neq('phone_e164', recipient.phone_e164)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(150);
 
       if (candError) {
         return { allocatedCount: 0, contacts: [], error: `Failed to query candidate contacts: ${candError.message}` };
       }
 
-      // Filter out candidates already allocated
-      const freshCandidates = (candidates || []).filter((c: { id: string }) => !existingIds.has(c.id));
+      // Filter out candidates already allocated or matching recipient
+      const unallocatedCandidates = (candidates || []).filter(
+        (c: { id: string; phone_e164: string }) => !existingIds.has(c.id) && c.phone_e164 !== recipient.phone_e164
+      );
 
-      if (freshCandidates.length === 0) {
+      if (unallocatedCandidates.length === 0) {
         return {
           allocatedCount: 0,
           contacts: [],
-          error: null, // Honest empty state
+          error: null, // Honest empty state: no new contacts available
         };
       }
 
-      // 4. Verify candidate active consent in consent_records
-      const candidateIds = freshCandidates.slice(0, requestedCount).map((c: { id: string }) => c.id);
+      // 5. Verify candidates' latest consent: must have consent_type: 'contact_distribution' and not withdrawn
+      const candidateIds = unallocatedCandidates.slice(0, requestedCount * 2).map((c: { id: string }) => c.id);
       const { data: consentChecks } = await supabase
         .from('consent_records')
-        .select('member_id, granted, withdrawn_at')
-        .in('member_id', candidateIds);
+        .select('member_id, consent_type, granted, withdrawn_at')
+        .in('member_id', candidateIds)
+        .eq('consent_type', 'contact_distribution');
 
+      // Build map of latest consent state per candidate
       const activelyConsentingIds = new Set<string>();
+      const candidateConsentMap = new Map<string, { granted: boolean; withdrawn_at: string | null }>();
+
       (consentChecks || []).forEach((rec: { member_id: string; granted: boolean; withdrawn_at: string | null }) => {
+        candidateConsentMap.set(rec.member_id, rec);
         if (rec.granted && !rec.withdrawn_at) {
           activelyConsentingIds.add(rec.member_id);
         }
       });
 
-      // Default candidates whose consent was recorded at registration
-      const confirmedCandidates = freshCandidates.filter(
-        (c: { id: string }) => activelyConsentingIds.has(c.id) || !consentChecks?.some((chk: { member_id: string }) => chk.member_id === c.id)
-      );
+      // Filter to only confirmed actively consenting candidates
+      const confirmedCandidates = unallocatedCandidates.filter((c: { id: string }) => {
+        const consent = candidateConsentMap.get(c.id);
+        if (consent) {
+          return consent.granted && !consent.withdrawn_at;
+        }
+        // If no consent record exists, they are not eligible
+        return false;
+      });
 
       if (confirmedCandidates.length === 0) {
         return { allocatedCount: 0, contacts: [], error: null };
       }
 
-      // 5. Insert allocations using live column `contact_member_id`
+      const selectedBatch = confirmedCandidates.slice(0, requestedCount);
+
+      // 6. Insert allocations into `contact_allocations` table
       const now = new Date().toISOString();
-      const insertRows = confirmedCandidates.slice(0, requestedCount).map((c: { id: string }) => ({
+      const insertRows = selectedBatch.map((c: { id: string }) => ({
         recipient_member_id: recipientMemberId,
         contact_member_id: c.id,
         allocated_at: now,
@@ -496,7 +541,7 @@ export class SupabaseService {
         return { allocatedCount: 0, contacts: [], error: `Allocation failed: ${insertError.message}` };
       }
 
-      const mappedContacts: Member[] = confirmedCandidates.slice(0, requestedCount).map(c => this.mapMemberRow(c));
+      const mappedContacts: Member[] = selectedBatch.map(c => this.mapMemberRow(c));
       return {
         allocatedCount: mappedContacts.length,
         contacts: mappedContacts,
@@ -510,7 +555,7 @@ export class SupabaseService {
 
   /**
    * Fetches all contacts currently allocated to recipient member,
-   * strictly excluding any contact whose consent has since been withdrawn!
+   * strictly excluding any contact whose consent has since been withdrawn or whose account is suspended!
    */
   async getAllocatedContactsForRecipient(
     recipientMemberId: string
@@ -541,11 +586,12 @@ export class SupabaseService {
         return { contacts: [], revokedCount: 0, error: memErr?.message || 'Failed to fetch contacts.' };
       }
 
-      // Check current consent status
+      // Check current consent status for contact_distribution
       const { data: consentRows } = await supabase
         .from('consent_records')
-        .select('member_id, granted, withdrawn_at')
-        .in('member_id', allocatedIds);
+        .select('member_id, consent_type, granted, withdrawn_at')
+        .in('member_id', allocatedIds)
+        .eq('consent_type', 'contact_distribution');
 
       const activeConsentMap = new Map<string, boolean>();
       (consentRows || []).forEach((c: { member_id: string; granted: boolean; withdrawn_at: string | null }) => {
@@ -555,8 +601,18 @@ export class SupabaseService {
       const eligibleContacts: Member[] = [];
       let revokedCount = 0;
 
-      memberRows.forEach((m: { id: string; status: 'active' | 'withdrawn' | 'suspended'; display_name: string; country_code: string; phone_e164: string; preferred_language: 'en' | 'fr'; created_at: string; updated_at: string }) => {
-        const hasConsent = activeConsentMap.get(m.id) ?? (m.status === 'active');
+      memberRows.forEach((m: {
+        id: string;
+        status: 'pending' | 'active' | 'suspended';
+        display_name: string;
+        country_code: string;
+        phone_e164: string;
+        preferred_language: 'en' | 'fr';
+        created_at: string;
+        updated_at: string;
+      }) => {
+        const hasConsent = activeConsentMap.get(m.id) === true;
+        // Strictly exclude if consent was withdrawn OR member is suspended/pending
         if (hasConsent && m.status === 'active') {
           eligibleContacts.push(this.mapMemberRow(m));
         } else {
@@ -607,7 +663,7 @@ export class SupabaseService {
    * Checks whether a user holds an administrative role in `admin_roles` table
    */
   async checkAdminRole(userId: string): Promise<boolean> {
-    if (!isSupabaseConfigured()) return false;
+    if (!isSupabaseConfigured() || !userId) return false;
 
     try {
       const { data, error } = await supabase
@@ -682,7 +738,7 @@ export class SupabaseService {
       country_code: string;
       phone_e164: string;
       preferred_language: 'en' | 'fr';
-      status: 'active' | 'withdrawn' | 'suspended';
+      status: 'pending' | 'active' | 'suspended';
       created_at?: string;
       updated_at?: string;
     },
@@ -698,6 +754,17 @@ export class SupabaseService {
     }
   ): Member {
     const isConsenting = consentRow ? (consentRow.granted && !consentRow.withdrawn_at) : (row.status === 'active');
+
+    let eligibility: MemberEligibility = 'eligible';
+    if (row.status === 'suspended') {
+      eligibility = 'suspended';
+    } else if (row.status === 'pending') {
+      eligibility = 'under_review';
+    } else if (!isConsenting) {
+      eligibility = 'withdrawn';
+    } else {
+      eligibility = 'eligible';
+    }
 
     const defaultConsent: ConsentRecord = {
       id: consentRow?.id || 'cst_' + row.id,
@@ -721,7 +788,7 @@ export class SupabaseService {
       preferredLanguage: row.preferred_language || 'en',
       referralCode: 'CG-' + row.id.slice(0, 6).toUpperCase(),
       consent: defaultConsent,
-      eligibility: row.status === 'active' ? 'eligible' : 'withdrawn',
+      eligibility,
       registeredAt: row.created_at || new Date().toISOString(),
       lastActiveAt: row.updated_at || new Date().toISOString(),
       downloadCount: 0,

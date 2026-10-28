@@ -20,26 +20,37 @@ export interface SampleVCardContact {
 }
 
 /**
- * Escapes characters for vCard text values according to RFC 2426.
+ * Escapes characters for vCard text values according to RFC 2426 Section 2.4.2.
+ * Backslashes, semicolons, commas, and newlines must be escaped.
  */
-function escapeVCardText(text: string): string {
+export function escapeVCardText(text: string): string {
   if (!text) return '';
   return text
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
+    .replace(/\r\n/g, '\\n')
     .replace(/\n/g, '\\n')
     .replace(/\r/g, '');
 }
 
 /**
+ * Validates whether a phone number matches standard international E.164 format (+ followed by 7-15 digits).
+ */
+export function isValidE164Format(phone: string): boolean {
+  if (!phone) return false;
+  return /^\+[1-9]\d{6,14}$/.test(phone.trim());
+}
+
+/**
  * Generates an RFC 2426 standard vCard 3.0 text payload from actual allocated, consented records.
  * 
- * Rules enforced:
- * - Excludes recipient's own number.
+ * Rules strictly enforced:
+ * - Excludes recipient's own number (self-exclusion).
  * - Deduplicates numbers by normalized E.164.
- * - Escapes special characters properly.
- * - Uses proper CRLF line breaks.
+ * - Validates E.164 international phone format.
+ * - Escapes special characters properly (RFC 2426).
+ * - Uses proper CRLF line breaks (\r\n) and terminates with a trailing CRLF.
  */
 export function generateRealVcfString(
   contacts: ConsentedContactExport[],
@@ -47,13 +58,19 @@ export function generateRealVcfString(
 ): { vcfString: string; count: number } {
   const lines: string[] = [];
   const seenNumbers = new Set<string>();
+  const normalizedRecipient = recipientNormalizedPhone?.trim();
 
   for (const c of contacts) {
     const phone = c.normalizedE164?.trim();
     if (!phone) continue;
 
     // Strict safety check: Never include recipient's own phone number
-    if (recipientNormalizedPhone && phone === recipientNormalizedPhone.trim()) {
+    if (normalizedRecipient && phone === normalizedRecipient) {
+      continue;
+    }
+
+    // Must be valid E.164 phone structure
+    if (!isValidE164Format(phone)) {
       continue;
     }
 
@@ -70,13 +87,16 @@ export function generateRealVcfString(
     lines.push(`FN:CG · ${safeName}`);
     lines.push(`N:${safeName};;;;`);
     lines.push(`TEL;TYPE=CELL,VOICE:${phone}`);
-    lines.push(`NOTE:Contact Gaining member. Consented voluntary contact exchange participant.`);
+    lines.push('NOTE:Contact Gaining member. Consented voluntary contact exchange participant.');
     lines.push('CATEGORIES:Contact Gaining Network');
     lines.push('END:VCARD');
   }
 
+  // RFC 2426 specifies CRLF line terminators, with a final trailing CRLF
+  const vcfString = lines.length > 0 ? lines.join('\r\n') + '\r\n' : '';
+
   return {
-    vcfString: lines.join('\r\n'),
+    vcfString,
     count: seenNumbers.size,
   };
 }
