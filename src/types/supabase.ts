@@ -11,195 +11,149 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+/**
+ * Reconciled Supabase Database Schema matching live database qwppwilumpokakzpusmo
+ */
 export interface Database {
   public: {
     Tables: {
       members: {
         Row: {
-          id: string;
-          user_id: string | null;
+          id: string; // references auth.users.id
           display_name: string;
           country_code: string;
-          phone_calling_code: string;
-          raw_phone: string;
-          normalized_e164: string;
+          phone_e164: string;
           preferred_language: 'en' | 'fr';
-          referral_code: string;
-          referred_by_code: string | null;
-          eligibility: 'eligible' | 'under_review' | 'suspended' | 'withdrawn';
-          registered_at: string;
-          last_active_at: string;
-          is_sample_record: boolean;
+          status: 'active' | 'withdrawn' | 'suspended';
+          created_at: string;
+          updated_at: string;
         };
         Insert: {
-          id?: string;
-          user_id?: string | null;
+          id: string;
           display_name: string;
           country_code: string;
-          phone_calling_code: string;
-          raw_phone: string;
-          normalized_e164: string;
+          phone_e164: string;
           preferred_language?: 'en' | 'fr';
-          referral_code?: string;
-          referred_by_code?: string | null;
-          eligibility?: 'eligible' | 'under_review' | 'suspended' | 'withdrawn';
-          registered_at?: string;
-          last_active_at?: string;
-          is_sample_record?: boolean;
+          status?: 'active' | 'withdrawn' | 'suspended';
+          created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
-          user_id?: string | null;
           display_name?: string;
           country_code?: string;
-          phone_calling_code?: string;
-          raw_phone?: string;
-          normalized_e164?: string;
+          phone_e164?: string;
           preferred_language?: 'en' | 'fr';
-          referral_code?: string;
-          referred_by_code?: string | null;
-          eligibility?: 'eligible' | 'under_review' | 'suspended' | 'withdrawn';
-          registered_at?: string;
-          last_active_at?: string;
-          is_sample_record?: boolean;
+          status?: 'active' | 'withdrawn' | 'suspended';
+          created_at?: string;
+          updated_at?: string;
         };
+        Relationships: [];
       };
       consent_records: {
         Row: {
           id: string;
           member_id: string;
-          purpose: string;
+          consent_type: string;
           granted: boolean;
-          terms_version: string;
-          acknowledged_no_remote_wipe: boolean;
-          timestamp: string;
-          revoked_at: string | null;
-          revocation_reason: string | null;
-          ip_hash_sample: string | null;
+          source: string;
+          version: string;
+          withdrawn_at: string | null;
+          metadata: Json | null;
         };
         Insert: {
           id?: string;
           member_id: string;
-          purpose?: string;
+          consent_type?: string;
           granted: boolean;
-          terms_version?: string;
-          acknowledged_no_remote_wipe?: boolean;
-          timestamp?: string;
-          revoked_at?: string | null;
-          revocation_reason?: string | null;
-          ip_hash_sample?: string | null;
+          source?: string;
+          version?: string;
+          withdrawn_at?: string | null;
+          metadata?: Json | null;
         };
         Update: {
           id?: string;
           member_id?: string;
-          purpose?: string;
+          consent_type?: string;
           granted?: boolean;
-          terms_version?: string;
-          acknowledged_no_remote_wipe?: boolean;
-          timestamp?: string;
-          revoked_at?: string | null;
-          revocation_reason?: string | null;
-          ip_hash_sample?: string | null;
+          source?: string;
+          version?: string;
+          withdrawn_at?: string | null;
+          metadata?: Json | null;
         };
+        Relationships: [];
       };
       contact_allocations: {
         Row: {
           id: string;
           recipient_member_id: string;
-          allocated_member_id: string;
-          release_id: string | null;
+          contact_member_id: string;
           allocated_at: string;
-          status: 'active' | 'revoked';
         };
         Insert: {
           id?: string;
           recipient_member_id: string;
-          allocated_member_id: string;
-          release_id?: string | null;
+          contact_member_id: string;
           allocated_at?: string;
-          status?: 'active' | 'revoked';
         };
         Update: {
           id?: string;
           recipient_member_id?: string;
-          allocated_member_id?: string;
-          release_id?: string | null;
+          contact_member_id?: string;
           allocated_at?: string;
-          status?: 'active' | 'revoked';
         };
+        Relationships: [];
       };
       contact_releases: {
         Row: {
           id: string;
-          release_number: number;
-          release_title: string;
-          published_at: string;
-          total_eligible_contacts: number;
-          incremental_new_contacts: number;
-          file_size_bytes: number;
-          hash_checksum: string;
           status: 'published' | 'draft' | 'archived';
-          description_en: string;
-          description_fr: string;
+          count: number;
+          created_at: string;
         };
         Insert: {
           id?: string;
-          release_number: number;
-          release_title: string;
-          published_at?: string;
-          total_eligible_contacts?: number;
-          incremental_new_contacts?: number;
-          file_size_bytes?: number;
-          hash_checksum?: string;
           status?: 'published' | 'draft' | 'archived';
-          description_en?: string;
-          description_fr?: string;
+          count?: number;
+          created_at?: string;
         };
         Update: {
           id?: string;
-          release_number?: number;
-          release_title?: string;
-          published_at?: string;
-          total_eligible_contacts?: number;
-          incremental_new_contacts?: number;
-          file_size_bytes?: number;
-          hash_checksum?: string;
           status?: 'published' | 'draft' | 'archived';
-          description_en?: string;
-          description_fr?: string;
+          count?: number;
+          created_at?: string;
         };
+        Relationships: [];
       };
       download_logs: {
         Row: {
           id: string;
           member_id: string;
           release_id: string | null;
-          download_type: 'full' | 'incremental';
           downloaded_at: string;
           contact_count: number;
-          status: 'completed' | 'failed';
-          ip_sample: string | null;
+          format: string;
+          user_agent: string | null;
         };
         Insert: {
           id?: string;
           member_id: string;
           release_id?: string | null;
-          download_type?: 'full' | 'incremental';
           downloaded_at?: string;
           contact_count: number;
-          status?: 'completed' | 'failed';
-          ip_sample?: string | null;
+          format?: string;
+          user_agent?: string | null;
         };
         Update: {
           id?: string;
           member_id?: string;
           release_id?: string | null;
-          download_type?: 'full' | 'incremental';
           downloaded_at?: string;
           contact_count?: number;
-          status?: 'completed' | 'failed';
-          ip_sample?: string | null;
+          format?: string;
+          user_agent?: string | null;
         };
+        Relationships: [];
       };
       admin_roles: {
         Row: {
@@ -220,38 +174,28 @@ export interface Database {
           granted_at?: string;
           granted_by?: string | null;
         };
+        Relationships: [];
       };
       audit_events: {
         Row: {
           id: string;
-          timestamp: string;
-          actor: string;
-          actor_role: string;
+          created_at: string;
           action: string;
-          details: string;
-          ip_address_sample: string | null;
           metadata: Json | null;
         };
         Insert: {
           id?: string;
-          timestamp?: string;
-          actor: string;
-          actor_role?: string;
+          created_at?: string;
           action: string;
-          details: string;
-          ip_address_sample?: string | null;
           metadata?: Json | null;
         };
         Update: {
           id?: string;
-          timestamp?: string;
-          actor?: string;
-          actor_role?: string;
+          created_at?: string;
           action?: string;
-          details?: string;
-          ip_address_sample?: string | null;
           metadata?: Json | null;
         };
+        Relationships: [];
       };
       platform_settings: {
         Row: {
@@ -272,6 +216,7 @@ export interface Database {
           updated_at?: string;
           updated_by?: string | null;
         };
+        Relationships: [];
       };
     };
     Views: {
