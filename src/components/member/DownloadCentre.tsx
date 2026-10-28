@@ -6,7 +6,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { mockDataService } from '../../services/mockDataService';
-import { ContactRelease } from '../../types';
 import { Button } from '../common/Button';
 import { WhatsAppStatusNotice, ContactPermanenceNotice } from '../common/Disclaimers';
 import {
@@ -16,55 +15,64 @@ import {
   CheckCircle2,
   AlertTriangle,
   RotateCcw,
-  ChevronDown,
+  UserCheck,
+  PlusCircle,
 } from 'lucide-react';
 
 export const DownloadCentre: React.FC = () => {
-  const { activeMember, t, addToast } = useApp();
+  const {
+    activeMember,
+    t,
+    addToast,
+    allocatedContacts,
+    downloadAllocatedVcfFile,
+    allocateNewContacts,
+  } = useApp();
 
   const [downloadState, setDownloadState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
-  const [simulateErrorToggle, setSimulateErrorToggle] = useState(false);
-  const [showDevOptions, setShowDevOptions] = useState(false);
-  const [selectedReleaseId, setSelectedReleaseId] = useState<string>('');
+  const [isAllocating, setIsAllocating] = useState(false);
   const [activeTab, setActiveTab] = useState<'instructions_android' | 'instructions_ios'>('instructions_android');
 
   const releases = mockDataService.getReleases();
-  const currentRelease = releases.find(r => r.id === selectedReleaseId) || releases[0];
+  const currentRelease = releases[0];
 
-  const handleDownload = (release: ContactRelease, type: 'full' | 'incremental') => {
-    setSelectedReleaseId(release.id);
+  const handleDownload = async () => {
     setDownloadState('loading');
     setDownloadProgress(25);
 
     const interval = setInterval(() => {
       setDownloadProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(interval);
-          return 90;
-        }
-        return prev + 25;
+        if (prev >= 85) return 85;
+        return prev + 20;
       });
     }, 120);
 
-    setTimeout(() => {
-      clearInterval(interval);
+    const res = await downloadAllocatedVcfFile();
+    clearInterval(interval);
 
-      const res = mockDataService.simulateDownload(release.id, type, simulateErrorToggle);
+    if (res.success) {
+      setDownloadProgress(100);
+      setDownloadState('success');
+    } else {
+      setDownloadState('error');
+      setErrorMessage(res.error || 'Download failed. Please try again.');
+    }
+  };
 
-      if (res.success) {
-        setDownloadProgress(100);
-        setDownloadState('success');
-        addToast(
-          'Contact file (.vcf) downloaded. Ready to import into your contacts.',
-          'success'
-        );
-      } else {
-        setDownloadState('error');
-        setErrorMessage(res.error || 'Download failed. Please try again.');
-      }
-    }, 700);
+  const handleRequestAllocation = async () => {
+    setIsAllocating(true);
+    const res = await allocateNewContacts(20);
+    setIsAllocating(false);
+
+    if (res.error) {
+      addToast(res.error, 'error');
+    } else if (res.count === 0) {
+      addToast('No new unallocated contacts are available in this batch. Check back as new members register!', 'info');
+    } else {
+      addToast(`Allocated ${res.count} new verified contacts to your directory.`, 'success');
+    }
   };
 
   const handleResetState = () => {
@@ -72,6 +80,11 @@ export const DownloadCentre: React.FC = () => {
     setDownloadProgress(0);
     setErrorMessage('');
   };
+
+  // Contacts ready to export (excluding self)
+  const eligibleCount = allocatedContacts.filter(
+    c => c.normalizedE164 !== activeMember.normalizedE164 && c.eligibility === 'eligible' && c.consent.consentedToExport
+  ).length;
 
   return (
     <div className="space-y-8">
@@ -90,43 +103,26 @@ export const DownloadCentre: React.FC = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => setShowDevOptions(!showDevOptions)}
-            className="text-xs text-[#6B6357] dark:text-[#81796D] hover:text-[#1C1915] dark:hover:text-[#F5F0E6] flex items-center gap-1 cursor-pointer self-start md:self-auto"
-          >
-            <span>Preview options</span>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showDevOptions ? 'rotate-180' : ''}`} />
-          </button>
-        </div>
-
-        {/* Collapsible Simulation Controls for Prototype Testing */}
-        {showDevOptions && (
-          <div className="mt-4 pt-4 border-t border-[#E5DFD5] dark:border-[#2B261F] flex flex-wrap items-center gap-4 text-xs text-[#6B6357] dark:text-[#A8A196]">
-            <span className="font-semibold text-[#1C1915] dark:text-[#F5F0E6]">Test scenario:</span>
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={simulateErrorToggle}
-                onChange={e => setSimulateErrorToggle(e.target.checked)}
-                className="rounded text-[#C5A15B] focus:ring-[#C5A15B]"
-              />
-              <span>Simulate connection error</span>
-            </label>
-            <button
-              onClick={handleResetState}
-              className="text-xs text-[#9D7B43] dark:text-[#C5A15B] hover:underline"
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isAllocating}
+              onClick={handleRequestAllocation}
+              icon={<PlusCircle className="w-4 h-4" />}
             >
-              Reset download state
-            </button>
+              {isAllocating ? 'Allocating...' : 'Request New Allocation'}
+            </Button>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Progress & Error States */}
+      {/* Progress / Status Indicators */}
       {downloadState === 'loading' && (
         <div className="rounded-2xl border p-6 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs text-center space-y-3">
+          <div className="w-8 h-8 rounded-full border-2 border-[#C5A15B] border-t-transparent animate-spin mx-auto" />
           <h3 className="font-semibold text-sm text-[#1C1915] dark:text-[#F5F0E6]">
-            Preparing your contact file...
+            Generating contact export file...
           </h3>
           <p className="text-xs text-[#6B6357] dark:text-[#A8A196]">
             Packaging verified member numbers and formatting vCard records.
@@ -173,7 +169,7 @@ export const DownloadCentre: React.FC = () => {
                 Download ready
               </h3>
               <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
-                The .vcf file has been generated. Open the file on your device to import contacts.
+                The .vcf file has been generated and saved to your downloads. Open the file on your device to import contacts.
               </p>
             </div>
           </div>
@@ -189,28 +185,28 @@ export const DownloadCentre: React.FC = () => {
 
       {/* Main Download Options */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Newly Added Members */}
+        {/* Allocated Active Contacts */}
         <div className="rounded-2xl border p-6 sm:p-7 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs flex flex-col justify-between space-y-5">
           <div>
             <div className="text-xs font-semibold text-[#9D7B43] dark:text-[#C5A15B] uppercase tracking-wider mb-1">
-              Recommended
+              Your Allocated Contacts
             </div>
             <h2 className="text-xl font-bold text-[#1C1915] dark:text-[#F5F0E6]">
-              Newly joined members
+              Verified Member File
             </h2>
             <p className="text-xs sm:text-sm text-[#6B6357] dark:text-[#A8A196] mt-1 leading-relaxed">
-              Download only members who have joined since the last release. Fast and easy to add without re-importing people you already have.
+              Download your allocated contacts who have currently given explicit consent. You can re-download this file anytime without consuming extra allocation allowance.
             </p>
 
             <div className="mt-5 p-4 rounded-xl border border-[#E5DFD5] dark:border-[#2B261F] bg-[#F6F2EA]/70 dark:bg-[#1D1A15] space-y-1.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-[#6B6357] dark:text-[#A8A196]">New contacts in batch:</span>
+                <span className="text-[#6B6357] dark:text-[#A8A196]">Eligible contacts:</span>
                 <span className="font-bold font-mono text-[#1C1915] dark:text-[#F5F0E6]">
-                  +{currentRelease?.incrementalNewContacts || 48}
+                  {eligibleCount} members
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#6B6357] dark:text-[#A8A196]">File format:</span>
+                <span className="text-[#6B6357] dark:text-[#A8A196]">Format:</span>
                 <span className="font-mono text-[#1C1915] dark:text-[#F5F0E6]">vCard 3.0 (.vcf)</span>
               </div>
               <div className="flex justify-between">
@@ -223,41 +219,39 @@ export const DownloadCentre: React.FC = () => {
           <Button
             size="lg"
             variant="gold"
-            isLoading={downloadState === 'loading' && selectedReleaseId === currentRelease.id}
-            onClick={() => handleDownload(currentRelease, 'incremental')}
+            isLoading={downloadState === 'loading'}
+            onClick={handleDownload}
             icon={<DownloadCloud className="w-5 h-5 text-black" />}
           >
-            {t('dlIncrementalBtn')}
+            Download Allocated Contacts ({eligibleCount})
           </Button>
         </div>
 
-        {/* Complete Directory */}
+        {/* Directory Status Card */}
         <div className="rounded-2xl border p-6 sm:p-7 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs flex flex-col justify-between space-y-5">
           <div>
             <div className="text-xs font-semibold text-[#6B6357] dark:text-[#A8A196] uppercase tracking-wider mb-1">
-              Full directory
+              Active Batch
             </div>
             <h2 className="text-xl font-bold text-[#1C1915] dark:text-[#F5F0E6]">
-              All active community contacts
+              {currentRelease.releaseTitle}
             </h2>
             <p className="text-xs sm:text-sm text-[#6B6357] dark:text-[#A8A196] mt-1 leading-relaxed">
-              A single archive with all active community members across all countries. Ideal if you are setting up a new phone or importing for the first time.
+              Contact releases occur in organized batches. All contacts are filtered to remove duplicates, exclude withdrawn profiles, and maintain mutual exchange standards.
             </p>
 
             <div className="mt-5 p-4 rounded-xl border border-[#E5DFD5] dark:border-[#2B261F] bg-[#F6F2EA]/70 dark:bg-[#1D1A15] space-y-1.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-[#6B6357] dark:text-[#A8A196]">Total contacts:</span>
-                <span className="font-bold font-mono text-[#1C1915] dark:text-[#F5F0E6]">
-                  {currentRelease?.totalEligibleContacts || 48}
-                </span>
+                <span className="text-[#6B6357] dark:text-[#A8A196]">Batch Release:</span>
+                <span className="font-mono text-[#1C1915] dark:text-[#F5F0E6]">#{currentRelease.releaseNumber}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#6B6357] dark:text-[#A8A196]">Deduplication:</span>
-                <span className="text-[#1C1915] dark:text-[#F5F0E6]">Zero duplicate numbers</span>
+                <span className="text-[#6B6357] dark:text-[#A8A196]">Re-export Policy:</span>
+                <span className="text-emerald-700 dark:text-emerald-400 font-medium">Free re-exports anytime</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#6B6357] dark:text-[#A8A196]">Self-exclusion:</span>
-                <span className="text-emerald-700 dark:text-emerald-400 font-medium">Your number is excluded</span>
+                <span className="text-[#6B6357] dark:text-[#A8A196]">Consent Check:</span>
+                <span className="text-[#1C1915] dark:text-[#F5F0E6]">Verified before each export</span>
               </div>
             </div>
           </div>
@@ -265,11 +259,11 @@ export const DownloadCentre: React.FC = () => {
           <Button
             size="lg"
             variant="outline"
-            isLoading={downloadState === 'loading' && selectedReleaseId === currentRelease.id}
-            onClick={() => handleDownload(currentRelease, 'full')}
-            icon={<DownloadCloud className="w-5 h-5" />}
+            disabled={isAllocating}
+            onClick={handleRequestAllocation}
+            icon={<UserCheck className="w-5 h-5" />}
           >
-            {t('dlFullBtn')}
+            {isAllocating ? 'Requesting...' : 'Request Next 20 Contacts'}
           </Button>
         </div>
       </div>

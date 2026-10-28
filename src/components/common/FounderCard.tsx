@@ -116,24 +116,15 @@ export const FounderCard: React.FC<FounderCardProps> = ({ variant = 'section', c
               {t('founderMission')}
             </p>
 
-            <div className="pt-2 flex flex-wrap items-center gap-4">
+            <div className="pt-2">
               <a
                 href={FOUNDER_PORTFOLIO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm text-[#0B0A08] bg-[#C5A15B] hover:bg-[#D4B36D] transition-colors shadow-xs cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-xs sm:text-sm text-[#0B0A08] bg-[#C5A15B] hover:bg-[#D4B36D] transition-colors shadow-xs cursor-pointer"
               >
                 <span>{t('founderPortfolioCta')}</span>
                 <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-
-              <a
-                href={FOUNDER_PORTFOLIO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm text-[#1C1915] dark:text-[#F5F0E6] bg-[#F0ECE1] dark:bg-[#1D1A15] hover:bg-[#E5DFD5] dark:hover:bg-[#25221D] border border-[#E5DFD5] dark:border-[#2B261F] transition-colors cursor-pointer"
-              >
-                <span>{t('founderWorkTogetherCta')}</span>
               </a>
             </div>
           </div>

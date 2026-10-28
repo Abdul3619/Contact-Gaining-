@@ -17,12 +17,13 @@ import {
 } from 'lucide-react';
 
 export const ProfileAndConsent: React.FC = () => {
-  const { activeMember, refreshData, t, addToast, setMemberScreen } = useApp();
+  const { activeMember, refreshData, t, addToast, setMemberScreen, updateConsentWithSupabase } = useApp();
 
   const [displayName, setDisplayName] = useState(activeMember.displayName);
   const [countryCode, setCountryCode] = useState(activeMember.countryCode);
   const [preferredLanguage, setPreferredLanguage] = useState<'en' | 'fr'>(activeMember.preferredLanguage);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUpdatingConsent, setIsUpdatingConsent] = useState(false);
 
   const [removalModalOpen, setRemovalModalOpen] = useState(false);
   const [removalReason, setRemovalReason] = useState('No longer actively networking on WhatsApp');
@@ -43,15 +44,25 @@ export const ProfileAndConsent: React.FC = () => {
     }, 400);
   };
 
-  const handleConfirmRemoval = () => {
-    mockDataService.requestContactRemoval(activeMember.id, removalReason);
+  const handleConfirmRemoval = async () => {
+    setIsUpdatingConsent(true);
+    await updateConsentWithSupabase(false, removalReason);
+    setIsUpdatingConsent(false);
     setRemovalModalOpen(false);
     refreshData();
-    addToast('Your contact details have been withdrawn from all future releases.', 'warning');
   };
 
-  const handleConfirmDeactivation = () => {
-    mockDataService.requestContactRemoval(activeMember.id, 'Account deactivation requested by member');
+  const handleReconsent = async () => {
+    setIsUpdatingConsent(true);
+    await updateConsentWithSupabase(true);
+    setIsUpdatingConsent(false);
+    refreshData();
+  };
+
+  const handleConfirmDeactivation = async () => {
+    setIsUpdatingConsent(true);
+    await updateConsentWithSupabase(false, 'Account deactivation requested by member');
+    setIsUpdatingConsent(false);
     setDeactivateModalOpen(false);
     refreshData();
     addToast('Your account has been deactivated.', 'info');
@@ -115,16 +126,28 @@ export const ProfileAndConsent: React.FC = () => {
             </div>
           </div>
 
-          {!isWithdrawn && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setRemovalModalOpen(true)}
-              className="text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
-            >
-              Withdraw details
-            </Button>
-          )}
+          <div>
+            {!isWithdrawn ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isUpdatingConsent}
+                onClick={() => setRemovalModalOpen(true)}
+                className="text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
+              >
+                Withdraw details
+              </Button>
+            ) : (
+              <Button
+                variant="gold"
+                size="sm"
+                disabled={isUpdatingConsent}
+                onClick={handleReconsent}
+              >
+                {isUpdatingConsent ? 'Reinstating...' : 'Re-enable Sharing'}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Record Details */}

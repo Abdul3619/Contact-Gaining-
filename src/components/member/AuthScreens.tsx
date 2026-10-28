@@ -5,37 +5,52 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { SearchableCountrySelect } from '../common/SearchableCountrySelect';
+import { supabaseService } from '../../services/supabaseService';
 import { Button } from '../common/Button';
 import {
-  ArrowRight,
   KeyRound,
   CheckCircle2,
-  Check,
+  ArrowLeft,
+  Mail,
+  Lock,
 } from 'lucide-react';
 
 export const SignInScreen: React.FC = () => {
-  const { t, allMembers, switchActiveMember, setMemberScreen, addToast } = useApp();
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [callingCode, setCallingCode] = useState('+234');
-  const [error, setError] = useState('');
+  const {
+    t,
+    allMembers,
+    switchActiveMember,
+    setMemberScreen,
+    signInWithSupabase,
+    isBackendConfigured,
+  } = useApp();
 
-  const handleContinue = (e: React.FormEvent) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phoneNumber.trim()) {
-      setError('Please enter your phone number or choose a profile below.');
+    if (!email.trim()) {
+      setError('Please enter your email address.');
       return;
     }
-    const cleanNum = phoneNumber.replace(/[^0-9]/g, '');
-    const found = allMembers.find(m => m.rawPhone.includes(cleanNum) || m.normalizedE164.includes(cleanNum));
+    if (!password) {
+      setError('Please enter your password.');
+      return;
+    }
 
-    if (found) {
-      switchActiveMember(found.id);
+    setIsLoading(true);
+    setError('');
+
+    const res = await signInWithSupabase(email.trim().toLowerCase(), password);
+    setIsLoading(false);
+
+    if (res.success) {
       setMemberScreen('dashboard');
     } else {
-      switchActiveMember(allMembers[0].id);
-      addToast('Signed in to sample profile.', 'info');
-      setMemberScreen('dashboard');
+      setError(res.error || 'Invalid credentials or user not found.');
     }
   };
 
@@ -50,38 +65,67 @@ export const SignInScreen: React.FC = () => {
           <p className="text-xs text-[#6B6357] dark:text-[#A8A196] mt-1">{t('signInDesc')}</p>
         </div>
 
-        <form onSubmit={handleContinue} className="space-y-4">
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-1">
-              <SearchableCountrySelect
-                mode="dialCode"
-                value={callingCode}
-                onChange={code => setCallingCode(code)}
-              />
-            </div>
-            <div className="col-span-2">
+        <form onSubmit={handleSignIn} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-[#1C1915] dark:text-[#F5F0E6] uppercase tracking-wider mb-1.5">
+              Email Address
+            </label>
+            <div className="relative">
               <input
-                type="tel"
-                value={phoneNumber}
+                type="email"
+                value={email}
                 onChange={e => {
-                  setPhoneNumber(e.target.value);
+                  setEmail(e.target.value);
                   setError('');
                 }}
-                placeholder="700 000 1234"
-                className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-transparent border border-[#E5DFD5] dark:border-[#2B261F] rounded-lg focus:border-[#C5A15B] outline-hidden font-mono text-[#1C1915] dark:text-[#F5F0E6]"
+                placeholder="name@example.com"
+                required
+                className="w-full min-h-[44px] px-3.5 py-2 pl-9 text-sm bg-transparent border border-[#E5DFD5] dark:border-[#2B261F] rounded-lg focus:border-[#C5A15B] outline-hidden text-[#1C1915] dark:text-[#F5F0E6]"
               />
+              <Mail className="w-4 h-4 text-[#81796D] absolute left-3 top-3.5" />
             </div>
           </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-[#1C1915] dark:text-[#F5F0E6] uppercase tracking-wider">
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => setMemberScreen('recovery')}
+                className="text-xs text-[#9D7B43] dark:text-[#C5A15B] hover:underline cursor-pointer"
+              >
+                Forgot?
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                type="password"
+                value={password}
+                onChange={e => {
+                  setPassword(e.target.value);
+                  setError('');
+                }}
+                placeholder="••••••••"
+                required
+                className="w-full min-h-[44px] px-3.5 py-2 pl-9 text-sm bg-transparent border border-[#E5DFD5] dark:border-[#2B261F] rounded-lg focus:border-[#C5A15B] outline-hidden text-[#1C1915] dark:text-[#F5F0E6]"
+              />
+              <Lock className="w-4 h-4 text-[#81796D] absolute left-3 top-3.5" />
+            </div>
+          </div>
+
           {error && <p className="text-xs text-rose-500">{error}</p>}
 
-          <Button type="submit" size="lg" variant="gold" className="w-full">
-            {t('signInBtn')}
+          <Button type="submit" size="lg" variant="gold" className="w-full" disabled={isLoading}>
+            {isLoading ? 'Signing in...' : t('signInBtn')}
           </Button>
         </form>
 
+        {/* Quick Profile Selection for Testing / Demo */}
         <div className="mt-6 pt-6 border-t border-[#E5DFD5] dark:border-[#2B261F]">
           <span className="text-[11px] font-semibold text-[#6B6357] dark:text-[#81796D] uppercase tracking-wider block mb-3">
-            Preview Profiles:
+            {isBackendConfigured ? 'Available Test Accounts:' : 'Demonstration Profiles:'}
           </span>
           <div className="space-y-2">
             {allMembers.slice(0, 3).map(m => (
@@ -133,73 +177,98 @@ export const SignInScreen: React.FC = () => {
 };
 
 export const AccountRecoveryScreen: React.FC = () => {
-  const { t, setMemberScreen, addToast } = useApp();
-  const [phone, setPhone] = useState('');
+  const { t, setMemberScreen } = useApp();
+  const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleRecover = (e: React.FormEvent) => {
+  const handleRecover = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    addToast('Sign-in link sent to your number.', 'info');
+    if (!email.trim() || !email.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError('');
+
+    const res = await supabaseService.requestPasswordReset(email.trim().toLowerCase());
+    setIsSubmitting(false);
+
+    if (res.error) {
+      setError(res.error);
+    } else {
+      setSubmitted(true);
+    }
   };
 
   return (
-    <div className="max-w-md mx-auto py-8 px-4">
-      <div className="rounded-2xl border p-6 sm:p-8 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs text-[#1C1915] dark:text-[#F5F0E6]">
-        <div className="text-center mb-6">
-          <div className="w-10 h-10 rounded-xl bg-[#F0ECE1] dark:bg-[#1D1A15] border border-[#E5DFD5] dark:border-[#2B261F] text-[#9D7B43] dark:text-[#C5A15B] flex items-center justify-center mx-auto mb-3">
-            <KeyRound className="w-5 h-5" />
-          </div>
-          <h1 className="text-xl font-bold text-[#1C1915] dark:text-[#F5F0E6]">{t('accountRecoveryTitle')}</h1>
-          <p className="text-xs text-[#6B6357] dark:text-[#A8A196] mt-1">{t('accountRecoveryDesc')}</p>
-        </div>
+    <div className="max-w-md mx-auto py-8 px-4 text-[#1C1915] dark:text-[#F5F0E6]">
+      <div className="rounded-2xl border p-6 sm:p-8 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs">
+        <button
+          onClick={() => setMemberScreen('sign_in')}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6B6357] hover:text-[#1C1915] dark:text-[#A8A196] dark:hover:text-[#F5F0E6] mb-6 transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to sign in</span>
+        </button>
 
-        {submitted ? (
-          <div className="p-4 rounded-xl border text-xs space-y-3 bg-[#F2F9F5] dark:bg-[#0E1712] border-emerald-200 dark:border-emerald-900/60 text-[#1C1915] dark:text-[#F5F0E6]">
-            <div className="flex items-center gap-2 font-semibold text-sm text-emerald-800 dark:text-emerald-300">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>Sign-in details dispatched</span>
+        {!submitted ? (
+          <div>
+            <div className="w-10 h-10 rounded-xl bg-[#F0ECE1] dark:bg-[#1D1A15] border border-[#E5DFD5] dark:border-[#2B261F] text-[#9D7B43] dark:text-[#C5A15B] flex items-center justify-center font-bold text-sm mb-4">
+              <KeyRound className="w-5 h-5" />
             </div>
-            <p className="leading-relaxed text-[#6B6357] dark:text-[#A8A196]">
-              A verification link was generated for {phone || 'your phone number'}. You can also sign in directly using any preview profile.
+
+            <h1 className="text-xl font-bold tracking-tight mb-1">
+              {t('accountRecoveryTitle')}
+            </h1>
+            <p className="text-xs sm:text-sm text-[#6B6357] dark:text-[#A8A196] leading-relaxed mb-6">
+              Enter the email address associated with your Contact Gaining account. We will send you instructions to reset your password.
+            </p>
+
+            <form onSubmit={handleRecover} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5">
+                  Account Email Address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => {
+                    setEmail(e.target.value);
+                    setError('');
+                  }}
+                  placeholder="name@example.com"
+                  required
+                  className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-transparent border border-[#E5DFD5] dark:border-[#2B261F] rounded-lg focus:border-[#C5A15B] outline-hidden text-[#1C1915] dark:text-[#F5F0E6]"
+                />
+              </div>
+
+              {error && <p className="text-xs text-rose-500">{error}</p>}
+
+              <Button type="submit" size="lg" variant="gold" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Sending instructions...' : 'Send Recovery Instructions'}
+              </Button>
+            </form>
+          </div>
+        ) : (
+          <div className="text-center py-4 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <h2 className="text-lg font-bold">Check your inbox</h2>
+            <p className="text-xs sm:text-sm text-[#6B6357] dark:text-[#A8A196] leading-relaxed">
+              If an account is registered with <strong className="text-[#1C1915] dark:text-[#F5F0E6]">{email}</strong>, you will receive password reset instructions shortly.
             </p>
             <Button
-              variant="gold"
-              size="sm"
+              variant="secondary"
               onClick={() => setMemberScreen('sign_in')}
-              className="w-full mt-2"
+              className="w-full mt-4"
             >
               Return to sign in
             </Button>
           </div>
-        ) : (
-          <form onSubmit={handleRecover} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-[#1C1915] dark:text-[#F5F0E6] uppercase tracking-wider mb-1.5">
-                {t('phoneLabel')}
-              </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="+234 800 000 1234"
-                required
-                className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-transparent border border-[#E5DFD5] dark:border-[#2B261F] rounded-lg focus:border-[#C5A15B] outline-hidden font-mono text-[#1C1915] dark:text-[#F5F0E6]"
-              />
-            </div>
-
-            <Button type="submit" size="lg" variant="gold" className="w-full">
-              {t('requestRecoveryBtn')}
-            </Button>
-
-            <button
-              type="button"
-              onClick={() => setMemberScreen('sign_in')}
-              className="w-full text-center text-xs text-[#6B6357] hover:text-[#1C1915] dark:text-[#81796D] dark:hover:text-[#F5F0E6] underline underline-offset-2 py-2 cursor-pointer"
-            >
-              Cancel and return
-            </button>
-          </form>
         )}
       </div>
     </div>
@@ -207,45 +276,24 @@ export const AccountRecoveryScreen: React.FC = () => {
 };
 
 export const VerificationPendingScreen: React.FC = () => {
-  const { activeMember, setMemberScreen } = useApp();
+  const { setMemberScreen } = useApp();
 
   return (
-    <div className="max-w-md mx-auto py-8 px-4 text-center">
-      <div className="rounded-2xl border p-6 sm:p-8 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs space-y-5 text-[#1C1915] dark:text-[#F5F0E6]">
-        <div className="w-12 h-12 rounded-xl bg-[#C5A15B]/15 text-[#9D7B43] dark:text-[#C5A15B] border border-[#C5A15B]/30 flex items-center justify-center mx-auto">
-          <Check className="w-6 h-6 text-[#9D7B43] dark:text-[#C5A15B]" />
+    <div className="max-w-md mx-auto py-8 px-4 text-[#1C1915] dark:text-[#F5F0E6]">
+      <div className="rounded-2xl border p-6 sm:p-8 transition-colors bg-[#FFFFFF] dark:bg-[#15130F] border-[#E5DFD5] dark:border-[#2B261F] shadow-xs text-center space-y-4">
+        <div className="w-12 h-12 rounded-full bg-[#C5A15B]/15 text-[#9D7B43] dark:text-[#C5A15B] flex items-center justify-center mx-auto">
+          <Mail className="w-6 h-6" />
         </div>
-
-        <div>
-          <h1 className="text-xl font-bold text-[#1C1915] dark:text-[#F5F0E6]">You&apos;re all set!</h1>
-          <p className="text-xs text-[#6B6357] dark:text-[#A8A196] mt-1.5 leading-relaxed">
-            Your details have been registered and added to the community directory.
-          </p>
-        </div>
-
-        <div className="p-4 rounded-xl border text-left text-xs space-y-2 bg-[#F6F2EA]/70 dark:bg-[#1D1A15] border-[#E5DFD5] dark:border-[#2B261F]">
-          <div className="flex justify-between">
-            <span className="text-[#6B6357] dark:text-[#81796D]">Name:</span>
-            <span className="font-semibold text-[#1C1915] dark:text-[#F5F0E6]">{activeMember.displayName}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-[#6B6357] dark:text-[#81796D]">WhatsApp:</span>
-            <span className="font-mono font-semibold text-[#9D7B43] dark:text-[#C5A15B]">{activeMember.normalizedE164}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-[#6B6357] dark:text-[#81796D]">Status:</span>
-            <span className="text-emerald-700 dark:text-emerald-400 font-medium">Active &amp; verified</span>
-          </div>
-        </div>
-
+        <h1 className="text-xl font-bold">Email Verification Required</h1>
+        <p className="text-xs sm:text-sm text-[#6B6357] dark:text-[#A8A196] leading-relaxed">
+          Please check your inbox and tap the verification link to confirm your account and activate contact exchange eligibility.
+        </p>
         <Button
-          size="lg"
           variant="gold"
           onClick={() => setMemberScreen('dashboard')}
           className="w-full"
-          icon={<ArrowRight className="w-4 h-4 text-black" />}
         >
-          Go to your dashboard
+          Continue to Dashboard
         </Button>
       </div>
     </div>

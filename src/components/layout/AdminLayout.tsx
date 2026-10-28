@@ -20,12 +20,57 @@ import {
   ArrowLeft,
   Menu,
   X,
+  Lock,
 } from 'lucide-react';
 import { SampleDataBanner } from '../common/Disclaimers';
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { adminScreen, setAdminScreen, setViewMode } = useApp();
+  const { adminScreen, setAdminScreen, setViewMode, isAdmin, isBackendConfigured, currentUser } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Real backend security gate:
+  // If backend is configured and user is not verified in admin_roles, block access
+  if (isBackendConfigured && !isAdmin) {
+    return (
+      <div className="min-h-screen flex flex-col font-sans transition-colors text-[#1C1915] dark:text-[#F5F0E6] relative z-10">
+        <SampleDataBanner />
+        <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
+          <div className="max-w-md w-full bg-[#FFFFFF]/95 dark:bg-[#15130F]/95 backdrop-blur-md rounded-2xl border border-[#E5DFD5] dark:border-[#2B261F] p-7 text-center shadow-md">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-6 h-6" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight text-[#1C1915] dark:text-[#F5F0E6] mb-2">
+              Administrative Access Restricted
+            </h1>
+            <p className="text-xs sm:text-sm text-[#6B6357] dark:text-[#A8A196] leading-relaxed mb-6">
+              Access to this console requires an authenticated administrator account verified in the{' '}
+              <code className="px-1.5 py-0.5 rounded bg-[#F0ECE1] dark:bg-[#1D1A15] font-mono text-[11px] text-[#C5A15B]">
+                admin_roles
+              </code>{' '}
+              database table.
+              {currentUser
+                ? ` Your current account (${currentUser.email || currentUser.id}) has not been granted administrative privileges.`
+                : ' Please sign in with administrator credentials.'}
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={() => setViewMode('member')}
+                className="w-full py-2.5 px-4 rounded-lg bg-[#C5A15B] hover:bg-[#D4B36D] text-[#0B0A08] font-semibold text-xs sm:text-sm transition-colors shadow-xs cursor-pointer"
+              >
+                Return to Member Dashboard
+              </button>
+              <button
+                onClick={() => setViewMode('public')}
+                className="w-full py-2.5 px-4 rounded-lg bg-[#F0ECE1] dark:bg-[#1D1A15] hover:bg-[#E5DFD5] dark:hover:bg-[#25221D] text-[#1C1915] dark:text-[#F5F0E6] font-medium text-xs sm:text-sm transition-colors cursor-pointer border border-[#E5DFD5] dark:border-[#2B261F]"
+              >
+                Return to Public Home
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const menuSections: { id: AdminScreen; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Overview & Activity', icon: <LayoutDashboard className="w-4 h-4" /> },

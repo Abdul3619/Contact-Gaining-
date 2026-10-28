@@ -99,6 +99,13 @@ class MockDataService {
     return this.members.find(m => m.id === id);
   }
 
+  getAllocatedContactsForActiveMember(): Member[] {
+    const active = this.getActiveMember();
+    return this.members.filter(
+      m => m.id !== active.id && m.consent.consentedToExport && m.eligibility === 'eligible'
+    );
+  }
+
   registerMember(payload: {
     displayName: string;
     countryCode: string;

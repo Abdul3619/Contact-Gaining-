@@ -19,12 +19,14 @@ import {
 } from 'lucide-react';
 
 export const RegistrationFlow: React.FC = () => {
-  const { locale, t, setMemberScreen, refreshData, addToast } = useApp();
+  const { locale, t, setMemberScreen, refreshData, addToast, signUpWithSupabase } = useApp();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Form State
   const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [countryCode, setCountryCode] = useState('NG');
   const [phoneCallingCode, setPhoneCallingCode] = useState('+234');
   const [rawPhone, setRawPhone] = useState('');
@@ -50,6 +52,12 @@ export const RegistrationFlow: React.FC = () => {
     const errs: Record<string, string> = {};
     if (!displayName.trim() || displayName.trim().length < 2) {
       errs.displayName = 'Please enter your name or business name.';
+    }
+    if (!email.trim() || !email.includes('@')) {
+      errs.email = 'Please enter a valid email address.';
+    }
+    if (!password || password.length < 6) {
+      errs.password = 'Password must be at least 6 characters.';
     }
     if (!countryCode) {
       errs.countryCode = 'Please select the country where you reside.';
@@ -97,33 +105,32 @@ export const RegistrationFlow: React.FC = () => {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateStep3()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      const res = mockDataService.registerMember({
-        displayName: displayName.trim(),
-        countryCode,
-        phoneCallingCode,
-        rawPhone: rawPhone.trim(),
-        normalizedE164: phoneValidation.e164,
-        preferredLanguage,
-        referralCode: referralCode.trim() || undefined,
-        consentedToExport: consentExport,
-        acknowledgedNoRemoteWipe: acknowledgeNoWipe,
-      });
+    setErrors({});
 
-      setIsSubmitting(false);
+    const res = await signUpWithSupabase({
+      email: email.trim().toLowerCase(),
+      password,
+      displayName: displayName.trim(),
+      countryCode,
+      phoneCallingCode,
+      rawPhone: rawPhone.trim(),
+      preferredLanguage,
+      referralCode: referralCode.trim() || undefined,
+      termsVersion: '2026.1',
+    });
 
-      if (res.success) {
-        refreshData();
-        addToast(`Welcome to Contact Gaining, ${res.member.displayName}!`, 'success');
-        setMemberScreen('dashboard');
-      } else {
-        setErrors({ submit: res.error || 'Unable to complete registration. Please check your details.' });
-      }
-    }, 500);
+    setIsSubmitting(false);
+
+    if (res.success) {
+      refreshData();
+      setMemberScreen('dashboard');
+    } else {
+      setErrors({ submit: res.error || 'Unable to complete registration. Please check your details.' });
+    }
   };
 
   return (
@@ -196,6 +203,44 @@ export const RegistrationFlow: React.FC = () => {
                 This is how you will appear in members&apos; contact books.
               </p>
             )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-[#1C1915] dark:text-[#F5F0E6] uppercase tracking-wider mb-2">
+                Email Address *
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                className={`w-full min-h-[44px] px-3.5 py-2.5 bg-transparent border rounded-lg text-sm transition-colors outline-hidden text-[#1C1915] dark:text-[#F5F0E6] placeholder:text-[#81796D] ${
+                  errors.email
+                    ? 'border-rose-500 focus:border-rose-600'
+                    : 'border-[#E5DFD5] focus:border-[#C5A15B] dark:border-[#2B261F]'
+                }`}
+              />
+              {errors.email && <p className="text-xs text-rose-500 mt-1.5">{errors.email}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#1C1915] dark:text-[#F5F0E6] uppercase tracking-wider mb-2">
+                Password *
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Min. 6 characters"
+                className={`w-full min-h-[44px] px-3.5 py-2.5 bg-transparent border rounded-lg text-sm transition-colors outline-hidden text-[#1C1915] dark:text-[#F5F0E6] placeholder:text-[#81796D] ${
+                  errors.password
+                    ? 'border-rose-500 focus:border-rose-600'
+                    : 'border-[#E5DFD5] focus:border-[#C5A15B] dark:border-[#2B261F]'
+                }`}
+              />
+              {errors.password && <p className="text-xs text-rose-500 mt-1.5">{errors.password}</p>}
+            </div>
           </div>
 
           <div>
